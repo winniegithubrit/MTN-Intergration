@@ -29,6 +29,7 @@ EXIT;
 
 # log in to MySQL using the new root password:
 mysql -u root -p
+mysql -u Ayitso -p BankSystem
 
 # Check Users and Authentication Methods:
 SELECT user, host, plugin FROM mysql.user WHERE user = 'root';
