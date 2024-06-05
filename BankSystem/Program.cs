@@ -4,12 +4,16 @@ using BankSystem.Models;
 using BankSystem.Services;
 using BankSystem.Options;
 using Microsoft.Extensions.Options;
+using Pomelo.EntityFrameworkCore.MySql;
+
+
 
 public class Program
 {
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.Logging.AddConsole();
 
         // Add services to the container.
         builder.Services.AddControllersWithViews();

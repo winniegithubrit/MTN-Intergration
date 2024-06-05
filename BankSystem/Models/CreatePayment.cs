@@ -1,4 +1,3 @@
-
 namespace BankSystem.Models
 {
   public class CreatePayment
