@@ -150,3 +150,4 @@
 /home/nathalie/winnie/Development/MTN-Intergration/BankSystem/obj/Debug/net8.0/BankSystem.pdb
 /home/nathalie/winnie/Development/MTN-Intergration/BankSystem/obj/Debug/net8.0/BankSystem.genruntimeconfig.cache
 /home/nathalie/winnie/Development/MTN-Intergration/BankSystem/obj/Debug/net8.0/ref/BankSystem.dll
+/home/nathalie/winnie/Development/MTN-Intergration/BankSystem/bin/Debug/net8.0/Newtonsoft.Json.dll

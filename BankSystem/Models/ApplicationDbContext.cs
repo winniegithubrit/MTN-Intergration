@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using BankSystem.Models;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 public class ApplicationDbContext : DbContext
 {
@@ -14,6 +15,11 @@ public class ApplicationDbContext : DbContext
   public DbSet<GetAccountBalance> AccountBalances { get; set; }
   public DbSet<GetAccountBalanceInSpecificCurrency> AccountBalancesInSpecificCurrency { get; set; }
   public DbSet<GetBasicUserInfo> BasicUserInfos { get; set; }
+  public DbSet<User> Users { get; set; }
+  public DbSet<Deposit> Deposits { get; set; }
+  public DbSet<Refund> Refunds { get; set; }
+  public DbSet<Transfer> Transfers { get; set; }
+  public DbSet<CreateInvoiceModel> Invoices { get; set; }
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -29,6 +35,12 @@ public class ApplicationDbContext : DbContext
       entity.OwnsOne(p => p.Payer);
     });
 
+    modelBuilder.Entity<CreateInvoiceModel>(entity =>
+    {
+      entity.OwnsOne(i => i.IntendedPayer);
+      entity.OwnsOne(i => i.Payee);
+    });
+
     modelBuilder.Entity<GetAccountBalance>()
         .HasOne(b => b.User)
         .WithMany(u => u.AccountBalances)
@@ -39,28 +51,57 @@ public class ApplicationDbContext : DbContext
         .WithMany(u => u.AccountBalancesInSpecificCurrency)
         .HasForeignKey(b => b.UserId);
 
-    // SEEDING DATA
-    modelBuilder.Entity<GetBasicUserInfo>().HasData(
-       new GetBasicUserInfo
-       {
-         Id = 1,
-         GivenName = "Charles",
-         FamilyName = "Wambui",
-         Birthdate = "1985-05-15",
-         Locale = "USA",
-         Gender = "Male",
-         Status = "Active"
-       },
-       new GetBasicUserInfo
-       {
-         Id = 2,
-         GivenName = "Jane",
-         FamilyName = "Smith",
-         Birthdate = "1990-08-20",
-         Locale = "GERM",
-         Gender = "Female",
-         Status = "Inactive"
-       }
-   );
+    // disbursement relationships
+    modelBuilder.Entity<Deposit>()
+        .HasOne(d => d.User)
+        .WithMany(u => u.Deposits)
+        .HasForeignKey(d => d.UserId);
+
+    modelBuilder.Entity<Refund>()
+        .HasOne(r => r.User)
+        .WithMany(u => u.Refunds)
+        .HasForeignKey(r => r.UserId);
+
+    modelBuilder.Entity<Transfer>()
+        .HasOne(t => t.User)
+        .WithMany(u => u.Transfers)
+        .HasForeignKey(t => t.UserId);
+
+    modelBuilder.Entity<Deposit>().HasKey(d => d.DepositId);
+    modelBuilder.Entity<Refund>().HasKey(r => r.RefundId);
+    modelBuilder.Entity<Transfer>().HasKey(t => t.TransferId);
+
+    modelBuilder.Entity<User>().HasData(
+        new User
+        {
+          Id = 1,
+          GivenName = "John",
+          FamilyName = "Tom",
+          Birthdate = "1990-01-01",
+          Locale = "en-US",
+          Gender = "Male",
+          Status = "Active"
+        },
+        new User
+        {
+          Id = 2,
+          GivenName = "Alice",
+          FamilyName = "Smith",
+          Birthdate = "1992-05-15",
+          Locale = "en-GB",
+          Gender = "Female",
+          Status = "Active"
+        },
+        new User
+        {
+          Id = 3,
+          GivenName = "Bob",
+          FamilyName = "Johnson",
+          Birthdate = "1985-11-20",
+          Locale = "en-AU",
+          Gender = "Male",
+          Status = "Inactive"
+        }
+    );
   }
 }

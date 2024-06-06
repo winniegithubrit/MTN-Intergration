@@ -144,7 +144,7 @@ namespace BankSystem.Controllers
           return BadRequest("Account holder MSISDN parameter is required.");
         }
 
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDExOjI0OjE2LjkxMyIsInNlc3Npb25JZCI6Ijg3NTUyNDUzLTU2NDQtNGM0Mi1hYzVlLTg4MTJhMmJlODViZiJ9.ZLKX1k8MJlp0psvRgVqpqbEfilLhHe7eJIGywIuonNp1aAcppHa-zBgZyGfc_YGWbiWF5Sv1xQDMzjFUidFDp5YwTn-dvrCdy74xqNe5piHDdXQkO-BPKQVVeN_psYdL-N2BrolxxK5YyxXEdrX2_tcN3vUZD9ln2iqbi2TK_q23O65miSwMr6KYNLbdgn7bTC8Tk_LAzIL3-QQoC-PfHiFrDChvtm4phpXZpOL9whUDxDR4G31lq638uWXTRYyGxHItIcEHCIWTcb7clowyNWYL32Mmq4e_imDeQjA4O6JiRNf7vxSV0ZGcu6oWYAWl28yNqdEPI9toW63ZD2LYmg";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDE1OjI0OjExLjU2MyIsInNlc3Npb25JZCI6Ijc3ZWViNWZiLWE1ZjgtNDM2ZC05Mzg0LTkyZTIxMTU4MDUyZiJ9.a4MvUrzbzhuYWmAZXPIf00YyDqDrAsIH4FGyUPzlm7yQPfNwCQtxSB941UTyCTye0lIXyTbBYCDdmeJE9UC77TexZ75NgG9WJGeGD8ESKPnUUGad_3NVKLpgPSISyrB8N0a0P1jPHmIABsKHShN_dS80D4bcM1dbgpnp1F8qt9wHsIb6V-Fgd3DO3310LKNOMsm-KlU9GD_4N7ZfUB7p3Y15RGw8lqD5RP3uyJkkqATejbRHovdUDg0jSc7fA-1DZjkiW9zlaqVoucpin1YJaBAo_enviqJVY6sof_MQrfIavIAsih050-MQvC1JdVNyocINuXNClhADrnTm9kF2YA";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
 
@@ -211,6 +211,33 @@ namespace BankSystem.Controllers
         return StatusCode(500, $"An error occurred while getting payment status: {ex.Message}");
       }
     }
+
+    [HttpPost("create-invoice")]
+    public async Task<IActionResult> CreateInvoice([FromBody] CreateInvoiceModel model)
+    {
+      if (model == null ||
+          string.IsNullOrEmpty(model.Amount) ||
+          string.IsNullOrEmpty(model.Currency) ||
+          string.IsNullOrEmpty(model.ExternalId) ||
+          model.IntendedPayer == null ||
+          string.IsNullOrEmpty(model.IntendedPayer.PartyIdType) ||
+          string.IsNullOrEmpty(model.IntendedPayer.PartyId))
+      {
+        return BadRequest("Invalid request parameters.");
+      }
+
+      try
+      {
+        var result = await _mtnMomoService.CreateInvoiceAsync(model);
+        return Ok(result);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while creating the invoice: {ex.Message}");
+        return StatusCode(500, $"An error occurred while creating the invoice: {ex.Message}");
+      }
+    }
+
 
   }
 }

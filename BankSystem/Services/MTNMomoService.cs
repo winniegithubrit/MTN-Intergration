@@ -2,10 +2,8 @@ using BankSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Net.Http;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Pomelo.EntityFrameworkCore.MySql;
 using System.Net.Http.Headers;
 
 namespace BankSystem.Services
@@ -23,7 +21,6 @@ namespace BankSystem.Services
 
     public async Task<string> CreatePaymentAsync(CreatePayment model)
     {
-      // Saving the data directly from the model
       _context.CreatePayments.Add(model);
       await _context.SaveChangesAsync();
 
@@ -35,6 +32,14 @@ namespace BankSystem.Services
       _context.RequestToPays.Add(model);
       await _context.SaveChangesAsync();
       return model;
+    }
+
+    public async Task<string> CreateInvoiceAsync(CreateInvoiceModel model)
+    {
+      _context.Invoices.Add(model);
+      await _context.SaveChangesAsync();
+
+      return $"Invoice created successfully with external ID: {model.ExternalId}";
     }
 
     public async Task<GetAccountBalance> GetAccountBalanceAsync(string accessToken, string targetEnvironment, string subscriptionKey)
@@ -81,13 +86,8 @@ namespace BankSystem.Services
 
     public async Task<GetBasicUserInfo?> GetBasicUserInfoAsync(string accessToken, string targetEnvironment, string subscriptionKey, string accountHolderMSISDN)
     {
-
       _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-
       _httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
-
-
       _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", targetEnvironment);
 
       string requestUrl = $"https://sandbox.momodeveloper.mtn.com/collection/v1_0/accountholder/msisdn/{accountHolderMSISDN}/basicuserinfo";
@@ -99,12 +99,10 @@ namespace BankSystem.Services
         var basicUserInfo = JsonSerializer.Deserialize<GetBasicUserInfo>(responseBody);
         if (basicUserInfo != null)
         {
-
           return basicUserInfo;
         }
         else
         {
-
           return null;
         }
       }

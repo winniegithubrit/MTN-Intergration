@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240606131408_AddedDisbursementModels")]
+    partial class AddedDisbursementModels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -366,34 +369,6 @@ namespace BankSystem.Migrations
                         });
                 });
 
-            modelBuilder.Entity("CreateInvoiceModel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Amount")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Currency")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ExternalId")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ValidityDuration")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Invoices");
-                });
-
             modelBuilder.Entity("BankSystem.Models.CreatePayment", b =>
                 {
                     b.OwnsOne("BankSystem.Models.Money", "Money", b1 =>
@@ -514,51 +489,6 @@ namespace BankSystem.Migrations
                     b.Navigation("Payee");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CreateInvoiceModel", b =>
-                {
-                    b.OwnsOne("Party", "IntendedPayer", b1 =>
-                        {
-                            b1.Property<int>("CreateInvoiceModelId")
-                                .HasColumnType("int");
-
-                            b1.Property<string>("PartyId")
-                                .HasColumnType("longtext");
-
-                            b1.Property<string>("PartyIdType")
-                                .HasColumnType("longtext");
-
-                            b1.HasKey("CreateInvoiceModelId");
-
-                            b1.ToTable("Invoices");
-
-                            b1.WithOwner()
-                                .HasForeignKey("CreateInvoiceModelId");
-                        });
-
-                    b.OwnsOne("Party", "Payee", b1 =>
-                        {
-                            b1.Property<int>("CreateInvoiceModelId")
-                                .HasColumnType("int");
-
-                            b1.Property<string>("PartyId")
-                                .HasColumnType("longtext");
-
-                            b1.Property<string>("PartyIdType")
-                                .HasColumnType("longtext");
-
-                            b1.HasKey("CreateInvoiceModelId");
-
-                            b1.ToTable("Invoices");
-
-                            b1.WithOwner()
-                                .HasForeignKey("CreateInvoiceModelId");
-                        });
-
-                    b.Navigation("IntendedPayer");
-
-                    b.Navigation("Payee");
                 });
 
             modelBuilder.Entity("BankSystem.Models.CreatePayment", b =>

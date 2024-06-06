@@ -6,8 +6,6 @@ using BankSystem.Options;
 using Microsoft.Extensions.Options;
 using Pomelo.EntityFrameworkCore.MySql;
 
-
-
 public class Program
 {
     public static void Main(string[] args)
@@ -20,6 +18,8 @@ public class Program
 
         // Register MoMoApiOptions from configuration
         builder.Services.Configure<MoMoApiOptions>(builder.Configuration.GetSection("MoMoApiOptions"));
+        // Register MoMoDisbursementOptions from configuration
+        builder.Services.Configure<MoMoDisbursementOptions>(builder.Configuration.GetSection("MoMoDisbursementOptions"));
 
         // Register the MtnMomoService with an HttpClient
         builder.Services.AddHttpClient<MtnMomoService>();
@@ -29,6 +29,9 @@ public class Program
                             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseMySQL(connectionString));
+
+        // Register MTNDisbursementService
+        builder.Services.AddScoped<MTNDisbursementService>();
 
         var app = builder.Build();
 
@@ -73,6 +76,6 @@ public class Program
                         httpsOptions.ServerCertificate = new X509Certificate2(certPath, certPassword);
                     });
                 })
-                .UseUrls("https://localhost:5002", "http://localhost:5001"); 
+                .UseUrls("https://localhost:5002", "http://localhost:5001");
             });
 }
