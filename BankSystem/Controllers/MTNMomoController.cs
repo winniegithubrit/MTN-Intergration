@@ -24,9 +24,15 @@ namespace BankSystem.Controllers
     [HttpPost("request-to-pay")]
     public async Task<IActionResult> RequestToPay([FromBody] RequestToPay model)
     {
-      if (model == null)
+      if (model == null ||
+          string.IsNullOrEmpty(model.Amount) ||
+          string.IsNullOrEmpty(model.Currency) ||
+          string.IsNullOrEmpty(model.ExternalId) ||
+          model.Payer == null ||
+          string.IsNullOrEmpty(model.Payer.PartyIdType) ||
+          string.IsNullOrEmpty(model.Payer.PartyId))
       {
-        return BadRequest("Invalid request payload.");
+        return BadRequest("Invalid request parameters.");
       }
 
       try
@@ -36,7 +42,8 @@ namespace BankSystem.Controllers
       }
       catch (Exception ex)
       {
-        return StatusCode(500, $"An error occurred: {ex.Message}");
+        _logger.LogError($"An error occurred while creating the request to pay: {ex.Message}");
+        return StatusCode(500, $"An error occurred while creating the request to pay: {ex.Message}");
       }
     }
 
@@ -70,12 +77,23 @@ namespace BankSystem.Controllers
     {
       try
       {
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA1VDEyOjM3OjQ4LjY2MCIsInNlc3Npb25JZCI6Ijk3YWZlYzdhLTk3YmYtNGNjZS05OTI2LWI5NGUyY2Q4MGU2ZSJ9.YdgMAGLGMjwISTI-nSxmxaluv7k5ZiNOimMvahx3qqaUrbtRNKZmNEZcNpDzBBw-otlEKTzKX3VD9pb9paZWQ2GmcTXVDIEx5fTEM0NXpqYJFiVcug_tZzZD3N4eP4I_IYKUJQFPeJ0JxjvkTu6EOKsa7pmVmd7hP6Am4-QB3TiTK1H3W2gNnd6AQyRn4wnbx5ko2t7LZjaAwwN8bzD3LPxD6rTIzebrIJXj5ciOqmWZn6YLHVpq2s3seT3kS-K8qc4cqXwX9v5Lrc7x0LT5Bc2SKAfgcrVjaPsko23up8JvqrNTygTx7w75wXLWsYbhuQGztluCr0cKH0oQQIdiiA";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDExOjI0OjE2LjkxMyIsInNlc3Npb25JZCI6Ijg3NTUyNDUzLTU2NDQtNGM0Mi1hYzVlLTg4MTJhMmJlODViZiJ9.ZLKX1k8MJlp0psvRgVqpqbEfilLhHe7eJIGywIuonNp1aAcppHa-zBgZyGfc_YGWbiWF5Sv1xQDMzjFUidFDp5YwTn-dvrCdy74xqNe5piHDdXQkO-BPKQVVeN_psYdL-N2BrolxxK5YyxXEdrX2_tcN3vUZD9ln2iqbi2TK_q23O65miSwMr6KYNLbdgn7bTC8Tk_LAzIL3-QQoC-PfHiFrDChvtm4phpXZpOL9whUDxDR4G31lq638uWXTRYyGxHItIcEHCIWTcb7clowyNWYL32Mmq4e_imDeQjA4O6JiRNf7vxSV0ZGcu6oWYAWl28yNqdEPI9toW63ZD2LYmg";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
 
         var result = await _mtnMomoService.GetAccountBalanceAsync(accessToken, targetEnvironment, subscriptionKey);
         return Ok(result);
+      }
+      catch (HttpRequestException ex)
+      {
+        if (ex.StatusCode.HasValue)
+        {
+          return StatusCode((int)ex.StatusCode, ex.Message);
+        }
+        else
+        {
+          return StatusCode(500, "An error occurred while fetching account balance. Please try again later.");
+        }
       }
       catch (Exception ex)
       {
@@ -91,7 +109,7 @@ namespace BankSystem.Controllers
         {
           return BadRequest("Currency parameter is required.");
         }
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA1VDEyOjU3OjU4LjA1MyIsInNlc3Npb25JZCI6IjdlZDNkNzRhLWZlNDQtNDBhMy1hNDdlLTdlYTg2NzkzOTU0MiJ9.FDLjRwWV-pYa5Mn3AS6nXDsc_YrJ8h4zyM0S14-tLTR-AKCR2vt-I0S0vt7oww5INpVHiMFue5wMWkyEOWpo2kp1Lqs3yJCmJAStuBfPC_1y4Xp_7ixC5wlcmkdVcgSmI85swu_t0wFpzTB_jdFdy7d1W7NQKn_H0dFAqdyi7o_YfRyS52f0sVDJEtQh0mV1tSiFI4w9w4xSr-HqoOjfbNp15yHVOvuIQpz-jgCm9Wb5_bLFoZmd8TIIcngYV9RQ1ZSkoMkMcljYObJRwwBaLlf-mH_5WRyFBWMHAAAkLQWU8a9U1rGIEnzmmcLJQoggP1RQklUwxBLIYebpO6WP9A";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDExOjI0OjE2LjkxMyIsInNlc3Npb25JZCI6Ijg3NTUyNDUzLTU2NDQtNGM0Mi1hYzVlLTg4MTJhMmJlODViZiJ9.ZLKX1k8MJlp0psvRgVqpqbEfilLhHe7eJIGywIuonNp1aAcppHa-zBgZyGfc_YGWbiWF5Sv1xQDMzjFUidFDp5YwTn-dvrCdy74xqNe5piHDdXQkO-BPKQVVeN_psYdL-N2BrolxxK5YyxXEdrX2_tcN3vUZD9ln2iqbi2TK_q23O65miSwMr6KYNLbdgn7bTC8Tk_LAzIL3-QQoC-PfHiFrDChvtm4phpXZpOL9whUDxDR4G31lq638uWXTRYyGxHItIcEHCIWTcb7clowyNWYL32Mmq4e_imDeQjA4O6JiRNf7vxSV0ZGcu6oWYAWl28yNqdEPI9toW63ZD2LYmg";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
         var result = await _mtnMomoService.GetAccountBalanceInSpecificCurrencyAsync(accessToken, targetEnvironment, subscriptionKey, currency);
@@ -125,10 +143,17 @@ namespace BankSystem.Controllers
         {
           return BadRequest("Account holder MSISDN parameter is required.");
         }
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA1VDEzOjMyOjI1LjA1NyIsInNlc3Npb25JZCI6IjZiZTRjOTg1LWVkOGEtNDNjYy1hYzI3LWVkOTBmM2E4Yzk3MyJ9.DIfkb-a5-Sxp0p6h0rYQLYmTKKMQZuhTZkbJ54CxEOKvwvigyinPb7QQR06HMqOtrQMErPdSYspF-dFHlSL5uGUkhLc7aCw_Cv9jrnsm-Uu1_NYHLyMpDeDbZUK-zO84jbTAEXn2KIfQhEVSsxDvUCHBD18S9xiq7LpCwbzonVQIfOhKSIuEqQyU01LhbTsNLNYHbbF_MA_hJ3UsxVqFTSbVXTOZZGPvfh8J7MT3PGMpHRlK2Yhte1rL-4edwxzLB3XOQRrCpfYYYwcA9WQkULWqDrs509hsEx_q_0GSwKA3cdqkpygxx_s1dOKonYev5D9ncuPGVm9G7MEBA-t8WA";
+
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDExOjI0OjE2LjkxMyIsInNlc3Npb25JZCI6Ijg3NTUyNDUzLTU2NDQtNGM0Mi1hYzVlLTg4MTJhMmJlODViZiJ9.ZLKX1k8MJlp0psvRgVqpqbEfilLhHe7eJIGywIuonNp1aAcppHa-zBgZyGfc_YGWbiWF5Sv1xQDMzjFUidFDp5YwTn-dvrCdy74xqNe5piHDdXQkO-BPKQVVeN_psYdL-N2BrolxxK5YyxXEdrX2_tcN3vUZD9ln2iqbi2TK_q23O65miSwMr6KYNLbdgn7bTC8Tk_LAzIL3-QQoC-PfHiFrDChvtm4phpXZpOL9whUDxDR4G31lq638uWXTRYyGxHItIcEHCIWTcb7clowyNWYL32Mmq4e_imDeQjA4O6JiRNf7vxSV0ZGcu6oWYAWl28yNqdEPI9toW63ZD2LYmg";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
+
+        _logger.LogInformation("Sending request to MTN Momo API with AccessToken: {AccessToken}, TargetEnvironment: {TargetEnvironment}, SubscriptionKey: {SubscriptionKey}, MSISDN: {MSISDN}", accessToken, targetEnvironment, subscriptionKey, accountHolderMSISDN);
+
         var result = await _mtnMomoService.GetBasicUserInfoAsync(accessToken, targetEnvironment, subscriptionKey, accountHolderMSISDN);
+
+        _logger.LogInformation("Received response from MTN Momo API: {Response}", result);
+
         return Ok(result);
       }
       catch (HttpRequestException ex)
@@ -150,6 +175,7 @@ namespace BankSystem.Controllers
       }
     }
 
+
     [HttpGet("payment-status/{xReferenceId}")]
     public async Task<IActionResult> GetPaymentStatus(string xReferenceId)
     {
@@ -161,7 +187,7 @@ namespace BankSystem.Controllers
         }
 
        
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA1VDEzOjU2OjE1Ljc1MiIsInNlc3Npb25JZCI6IjE5MzNhOGE4LTM5ODYtNDIzMy05MzE0LWM2MTQ5YTIzNTBlMiJ9.fZrmBmWiPWGz4II19hgGf5iqiFN3jqDaIgJrsgPGfUODAFWEwzapLk5mIA5etFHViN4ugFFAT5PTq9B7ZRngoIQm3Qw8s6fh0h4lmv3_0QpERfR1URNw6b5LEaBYTjPiDM_Kv2eaN3qJjYmdev7weM2JywGuYpOxCRsHPVJP5DbeuZW9_V12XViln1Uanik3kOuw6Yq84RAoVjAKQ7Mpji0IjXKf8Xf6wjSfYpy6QacKFSZt0OEDaxkyPj3ttjBZ10alkkUyBeo9RdBj7YZuDgOP8O9ULLOv4fRa32M5YTgUe9Nt8vL0EWzZWUgw9g4u8w6i61e5Wld9ZT6AYrC6BQ";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDExOjQ0OjQyLjI2NyIsInNlc3Npb25JZCI6ImJhY2MzZjZhLTQxZTktNDZiNy1iYTJmLTI2NGZjMjM3NjNiZiJ9.OX02ZBvn7AXZwkfwdgUZg8mjMz4iYKqWua7O8__ehO0d5IBlB86LaM3ZM-LZCWp2S9hA_4ZUQk5mxr707aHzVlAXNMBx79_uhFdvC8ParkFtJ2-e6kY_nt9k4g8AGVI5CSSwdIcv9DIX964OYqxnKtof4bnc_bOeo6dcoQAlsOvscPDpJJJs2TtBLZEkksIwUYDDVeQDl69RCv1P96VHaN7cmgeE5GDY03maExFiwez366Sv99rFdCcHKfQKQd5-ax49wamx2DM8PxxVMLqhhCZdiZ324HERLvley4jtb3A5GejUVtTr9FMITg4OvID7tykJojF9tBJ2FC0Nv6dX-g";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
         var result = await _mtnMomoService.GetPaymentStatusAsync(accessToken, targetEnvironment, subscriptionKey, xReferenceId);

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240605205238_RemoveRelation")]
+    partial class RemoveRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -120,28 +123,6 @@ namespace BankSystem.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("BasicUserInfos");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Birthdate = "1985-05-15",
-                            FamilyName = "Wambui",
-                            Gender = "Male",
-                            GivenName = "Charles",
-                            Locale = "USA",
-                            Status = "Active"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Birthdate = "1990-08-20",
-                            FamilyName = "Smith",
-                            Gender = "Female",
-                            GivenName = "Jane",
-                            Locale = "GERM",
-                            Status = "Inactive"
-                        });
                 });
 
             modelBuilder.Entity("BankSystem.Models.GetPaymentStatus", b =>

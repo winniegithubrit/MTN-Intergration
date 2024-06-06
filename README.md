@@ -97,3 +97,4 @@ testing the code using postman
 # export PATH="$PATH:/home/nathalie/.dotnet/tools"
 
 
+export DOTNET_ROOT=$HOME/.dotnet

@@ -38,5 +38,29 @@ public class ApplicationDbContext : DbContext
         .HasOne(b => b.User)
         .WithMany(u => u.AccountBalancesInSpecificCurrency)
         .HasForeignKey(b => b.UserId);
+
+    // SEEDING DATA
+    modelBuilder.Entity<GetBasicUserInfo>().HasData(
+       new GetBasicUserInfo
+       {
+         Id = 1,
+         GivenName = "Charles",
+         FamilyName = "Wambui",
+         Birthdate = "1985-05-15",
+         Locale = "USA",
+         Gender = "Male",
+         Status = "Active"
+       },
+       new GetBasicUserInfo
+       {
+         Id = 2,
+         GivenName = "Jane",
+         FamilyName = "Smith",
+         Birthdate = "1990-08-20",
+         Locale = "GERM",
+         Gender = "Female",
+         Status = "Inactive"
+       }
+   );
   }
 }

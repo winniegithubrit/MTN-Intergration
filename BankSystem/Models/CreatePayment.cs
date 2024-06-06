@@ -8,7 +8,7 @@ namespace BankSystem.Models
     public string? CustomerReference { get; set; }
     public string? ServiceProviderUserName { get; set; }
 
-    public RequestToPay? RequestToPay { get; set; }
+  
     public GetPaymentStatus? PaymentStatus { get; set; }
   }
 
