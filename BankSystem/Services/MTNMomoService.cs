@@ -42,29 +42,17 @@ namespace BankSystem.Services
       return $"Invoice created successfully with external ID: {model.ExternalId}";
     }
 
-    public async Task<GetAccountBalance> GetAccountBalanceAsync(string accessToken, string targetEnvironment, string subscriptionKey)
+    public async Task<string> GetAccountBalanceAsync(string accessToken, string targetEnvironment, string subscriptionKey)
     {
+    
       _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
       _httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
       _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", targetEnvironment);
-
       var response = await _httpClient.GetAsync("https://sandbox.momodeveloper.mtn.com/collection/v1_0/account/balance");
       var responseBody = await response.Content.ReadAsStringAsync();
-
-      if (response.IsSuccessStatusCode)
-      {
-        var accountBalance = JsonSerializer.Deserialize<GetAccountBalance>(responseBody);
-        if (accountBalance == null)
-        {
-          throw new HttpRequestException("Failed to deserialize account balance.");
-        }
-        return accountBalance;
-      }
-      else
-      {
-        throw new HttpRequestException($"Error fetching account balance: {response.StatusCode}, {responseBody}");
-      }
+      return responseBody;
     }
+
 
     public async Task<string> GetAccountBalanceInSpecificCurrencyAsync(string accessToken, string targetEnvironment, string subscriptionKey, string currency)
     {
@@ -86,28 +74,44 @@ namespace BankSystem.Services
 
     public async Task<GetBasicUserInfo?> GetBasicUserInfoAsync(string accessToken, string targetEnvironment, string subscriptionKey, string accountHolderMSISDN)
     {
+      // Set the authorization header
       _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+      // Set the subscription key header
       _httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
+
+      // Set the X-Target-Environment header
       _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", targetEnvironment);
 
+      // Construct the request URL with the accountHolderMSISDN parameter
       string requestUrl = $"https://sandbox.momodeveloper.mtn.com/collection/v1_0/accountholder/msisdn/{accountHolderMSISDN}/basicuserinfo";
 
+      // Make the GET request
       var response = await _httpClient.GetAsync(requestUrl);
+
+      // Check if the request was successful
       if (response.IsSuccessStatusCode)
       {
+        // Deserialize the response JSON to BasicUserInfo object
         var responseBody = await response.Content.ReadAsStringAsync();
         var basicUserInfo = JsonSerializer.Deserialize<GetBasicUserInfo>(responseBody);
+
+        // Check if basicUserInfo is null
         if (basicUserInfo != null)
         {
+          // Return the BasicUserInfo object
           return basicUserInfo;
         }
         else
         {
+          // Handle the case where deserialization fails or response is unexpected
+          // You can log a warning or return null
           return null;
         }
       }
       else
       {
+        // If the request was not successful, throw an HttpRequestException with a descriptive message
         throw new HttpRequestException($"Failed to get basic user information: {response.StatusCode} - {response.ReasonPhrase}");
       }
     }

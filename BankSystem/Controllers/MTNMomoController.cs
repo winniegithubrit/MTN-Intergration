@@ -77,29 +77,20 @@ namespace BankSystem.Controllers
     {
       try
       {
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDExOjI0OjE2LjkxMyIsInNlc3Npb25JZCI6Ijg3NTUyNDUzLTU2NDQtNGM0Mi1hYzVlLTg4MTJhMmJlODViZiJ9.ZLKX1k8MJlp0psvRgVqpqbEfilLhHe7eJIGywIuonNp1aAcppHa-zBgZyGfc_YGWbiWF5Sv1xQDMzjFUidFDp5YwTn-dvrCdy74xqNe5piHDdXQkO-BPKQVVeN_psYdL-N2BrolxxK5YyxXEdrX2_tcN3vUZD9ln2iqbi2TK_q23O65miSwMr6KYNLbdgn7bTC8Tk_LAzIL3-QQoC-PfHiFrDChvtm4phpXZpOL9whUDxDR4G31lq638uWXTRYyGxHItIcEHCIWTcb7clowyNWYL32Mmq4e_imDeQjA4O6JiRNf7vxSV0ZGcu6oWYAWl28yNqdEPI9toW63ZD2LYmg";
+        
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDIxOjE4OjEwLjQ0MSIsInNlc3Npb25JZCI6IjZiZTVjNDhjLTcyMjctNDI5OS04OWFlLTlmYmU5Y2IzMGYwMSJ9.AHkCQe5LKDbAe-EkggmAwjLcIF9zZvPjZEYnH1i7C0wUSss9NV1stJmM4TF9ytyTSWnUHR1lXKlST83nxLFNFRooPc0YzgqH1ZozS7cQdXlgbe0qSPmi_o214bL8hmGo_rB26H4PXq05P_KUO5c-WmdRSRqAjY3ooNX_o80QZYs7lPrt_2n_mnC_aW9cO4woFqFnjKHT1taq7jS2A6UdQLirGpa-W50rQJZXonHXlSJn-MJKEL5DvZKWsss6mZVqvfwIKvE29tkWt3oKmbeF8I__jOfSCiLpZuzqLRF8CXyw2j_YQyg7Ys0PnRqFfNW6byIYGR3-c-LFhs0ICZmrvA";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
 
         var result = await _mtnMomoService.GetAccountBalanceAsync(accessToken, targetEnvironment, subscriptionKey);
         return Ok(result);
       }
-      catch (HttpRequestException ex)
-      {
-        if (ex.StatusCode.HasValue)
-        {
-          return StatusCode((int)ex.StatusCode, ex.Message);
-        }
-        else
-        {
-          return StatusCode(500, "An error occurred while fetching account balance. Please try again later.");
-        }
-      }
       catch (Exception ex)
       {
         return StatusCode(500, $"An error occurred while fetching account balance: {ex.Message}");
       }
     }
+
     [HttpGet("account-balance/{currency}")]
     public async Task<IActionResult> GetAccountBalance(string currency)
     {
@@ -144,21 +135,23 @@ namespace BankSystem.Controllers
           return BadRequest("Account holder MSISDN parameter is required.");
         }
 
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDE1OjI0OjExLjU2MyIsInNlc3Npb25JZCI6Ijc3ZWViNWZiLWE1ZjgtNDM2ZC05Mzg0LTkyZTIxMTU4MDUyZiJ9.a4MvUrzbzhuYWmAZXPIf00YyDqDrAsIH4FGyUPzlm7yQPfNwCQtxSB941UTyCTye0lIXyTbBYCDdmeJE9UC77TexZ75NgG9WJGeGD8ESKPnUUGad_3NVKLpgPSISyrB8N0a0P1jPHmIABsKHShN_dS80D4bcM1dbgpnp1F8qt9wHsIb6V-Fgd3DO3310LKNOMsm-KlU9GD_4N7ZfUB7p3Y15RGw8lqD5RP3uyJkkqATejbRHovdUDg0jSc7fA-1DZjkiW9zlaqVoucpin1YJaBAo_enviqJVY6sof_MQrfIavIAsih050-MQvC1JdVNyocINuXNClhADrnTm9kF2YA";
+        // Replace 'accessToken', 'targetEnvironment', and 'subscriptionKey' with actual values
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDIxOjE4OjEwLjQ0MSIsInNlc3Npb25JZCI6IjZiZTVjNDhjLTcyMjctNDI5OS04OWFlLTlmYmU5Y2IzMGYwMSJ9.AHkCQe5LKDbAe-EkggmAwjLcIF9zZvPjZEYnH1i7C0wUSss9NV1stJmM4TF9ytyTSWnUHR1lXKlST83nxLFNFRooPc0YzgqH1ZozS7cQdXlgbe0qSPmi_o214bL8hmGo_rB26H4PXq05P_KUO5c-WmdRSRqAjY3ooNX_o80QZYs7lPrt_2n_mnC_aW9cO4woFqFnjKHT1taq7jS2A6UdQLirGpa-W50rQJZXonHXlSJn-MJKEL5DvZKWsss6mZVqvfwIKvE29tkWt3oKmbeF8I__jOfSCiLpZuzqLRF8CXyw2j_YQyg7Ys0PnRqFfNW6byIYGR3-c-LFhs0ICZmrvA";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
 
-        _logger.LogInformation("Sending request to MTN Momo API with AccessToken: {AccessToken}, TargetEnvironment: {TargetEnvironment}, SubscriptionKey: {SubscriptionKey}, MSISDN: {MSISDN}", accessToken, targetEnvironment, subscriptionKey, accountHolderMSISDN);
-
+        // Call the service to get the basic user information
         var result = await _mtnMomoService.GetBasicUserInfoAsync(accessToken, targetEnvironment, subscriptionKey, accountHolderMSISDN);
 
-        _logger.LogInformation("Received response from MTN Momo API: {Response}", result);
-
+        // Return the basic user information as JSON
         return Ok(result);
       }
       catch (HttpRequestException ex)
       {
+        // Log the exception
         _logger.LogError($"HTTP request failed: {ex.Message}");
+
+        // Handle specific HTTP request exceptions
         if (ex.StatusCode.HasValue)
         {
           return StatusCode((int)ex.StatusCode, ex.Message);
@@ -170,11 +163,13 @@ namespace BankSystem.Controllers
       }
       catch (Exception ex)
       {
+        // Log the exception
         _logger.LogError($"An error occurred: {ex.Message}");
+
+        // Handle any other exceptions
         return StatusCode(500, $"An error occurred while fetching basic user information: {ex.Message}");
       }
     }
-
 
     [HttpGet("payment-status/{xReferenceId}")]
     public async Task<IActionResult> GetPaymentStatus(string xReferenceId)

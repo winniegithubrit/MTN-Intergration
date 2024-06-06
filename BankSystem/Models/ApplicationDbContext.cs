@@ -41,16 +41,6 @@ public class ApplicationDbContext : DbContext
       entity.OwnsOne(i => i.Payee);
     });
 
-    modelBuilder.Entity<GetAccountBalance>()
-        .HasOne(b => b.User)
-        .WithMany(u => u.AccountBalances)
-        .HasForeignKey(b => b.UserId);
-
-    modelBuilder.Entity<GetAccountBalanceInSpecificCurrency>()
-        .HasOne(b => b.User)
-        .WithMany(u => u.AccountBalancesInSpecificCurrency)
-        .HasForeignKey(b => b.UserId);
-
     // disbursement relationships
     modelBuilder.Entity<Deposit>()
         .HasOne(d => d.User)
@@ -71,37 +61,6 @@ public class ApplicationDbContext : DbContext
     modelBuilder.Entity<Refund>().HasKey(r => r.RefundId);
     modelBuilder.Entity<Transfer>().HasKey(t => t.TransferId);
 
-    modelBuilder.Entity<User>().HasData(
-        new User
-        {
-          Id = 1,
-          GivenName = "John",
-          FamilyName = "Tom",
-          Birthdate = "1990-01-01",
-          Locale = "en-US",
-          Gender = "Male",
-          Status = "Active"
-        },
-        new User
-        {
-          Id = 2,
-          GivenName = "Alice",
-          FamilyName = "Smith",
-          Birthdate = "1992-05-15",
-          Locale = "en-GB",
-          Gender = "Female",
-          Status = "Active"
-        },
-        new User
-        {
-          Id = 3,
-          GivenName = "Bob",
-          FamilyName = "Johnson",
-          Birthdate = "1985-11-20",
-          Locale = "en-AU",
-          Gender = "Male",
-          Status = "Inactive"
-        }
-    );
+   
   }
 }
