@@ -61,6 +61,38 @@ public class ApplicationDbContext : DbContext
     modelBuilder.Entity<Refund>().HasKey(r => r.RefundId);
     modelBuilder.Entity<Transfer>().HasKey(t => t.TransferId);
 
-   
+    modelBuilder.Entity<GetBasicUserInfo>().HasData(
+            new GetBasicUserInfo
+            {
+              Id = 1,
+              GivenName = "John",
+              FamilyName = "Wilson",
+              Birthdate = "1980-01-01",
+              Locale = "en-US",
+              Gender = "Male",
+              Status = "Active"
+            },
+            new GetBasicUserInfo
+            {
+              Id = 2,
+              GivenName = "Jane",
+              FamilyName = "Smith",
+              Birthdate = "1985-05-15",
+              Locale = "en-GB",
+              Gender = "Female",
+              Status = "Active"
+            },
+            new GetBasicUserInfo
+            {
+              Id = 3,
+              GivenName = "Bob",
+              FamilyName = "Johnson",
+              Birthdate = "1990-11-20",
+              Locale = "en-AU",
+              Gender = "Male",
+              Status = "Inactive"
+            }
+        );
+
   }
 }
