@@ -39,5 +39,21 @@ namespace BankSystem.Controllers
         return StatusCode(500, $"An error occurred while processing deposit: {ex.Message}");
       }
     }
+    // balance
+
+    [HttpGet("balance")]
+    public async Task<IActionResult> GetBalance()
+    {
+      try
+      {
+        var balance = await _mtnDisbursementService.GetAccountBalanceAsync();
+        return Ok(balance);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while getting account balance: {ex.Message}");
+        return StatusCode(500, $"An error occurred while getting account balance: {ex.Message}");
+      }
+    }
   }
 }

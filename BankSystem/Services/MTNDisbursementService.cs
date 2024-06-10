@@ -70,5 +70,37 @@ namespace BankSystem.Services
 
       return deposit;
     }
+    // get account balance
+    public async Task<BalanceResponse> GetAccountBalanceAsync()
+    {
+      var requestUrl = "https://sandbox.momodeveloper.mtn.com/disbursement/v1_0/account/balance";
+      var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+
+      request.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
+      request.Headers.Add("X-Target-Environment", "sandbox");
+      request.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
+
+      _logger.LogInformation($"Sending request to {requestUrl} to get account balance");
+
+      var response = await _httpClient.SendAsync(request);
+
+      var responseBody = await response.Content.ReadAsStringAsync();
+      if (!response.IsSuccessStatusCode)
+      {
+        _logger.LogError($"An error occurred while getting account balance: {response.ReasonPhrase}. Response: {responseBody}");
+        response.EnsureSuccessStatusCode();
+      }
+
+      var balanceResponse = JsonSerializer.Deserialize<BalanceResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+      if (balanceResponse == null)
+      {
+        throw new InvalidOperationException("Failed to retrieve balance. The response is null.");
+      }
+
+      return balanceResponse;
+    }
+
+
   }
 }
