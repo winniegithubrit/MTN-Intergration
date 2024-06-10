@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using BankSystem.Models;
-using System.ComponentModel.DataAnnotations;
 
 public class ApplicationDbContext : DbContext
 {
@@ -15,10 +14,8 @@ public class ApplicationDbContext : DbContext
   public DbSet<GetAccountBalance> AccountBalances { get; set; }
   public DbSet<GetAccountBalanceInSpecificCurrency> AccountBalancesInSpecificCurrency { get; set; }
   public DbSet<GetBasicUserInfo> BasicUserInfos { get; set; }
-  public DbSet<User> Users { get; set; }
+  
   public DbSet<Deposit> Deposits { get; set; }
-  public DbSet<Refund> Refunds { get; set; }
-  public DbSet<Transfer> Transfers { get; set; }
   public DbSet<CreateInvoiceModel> Invoices { get; set; }
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -60,24 +57,20 @@ public class ApplicationDbContext : DbContext
       });
     });
 
-    // Disbursement relationships
-    modelBuilder.Entity<Deposit>()
-        .HasOne(d => d.User)
-        .WithMany(u => u.Deposits)
-        .HasForeignKey(d => d.UserId);
+    modelBuilder.Entity<Deposit>(entity =>
+    {
+      entity.HasKey(d => d.DepositId);
 
-    modelBuilder.Entity<Refund>()
-        .HasOne(r => r.User)
-        .WithMany(u => u.Refunds)
-        .HasForeignKey(r => r.UserId);
+      entity.OwnsOne(d => d.Payee, p =>
+      {
+        p.Property(p => p.PartyIdType).IsRequired();
+        p.Property(p => p.PartyId).IsRequired();
+      });
+    });
 
-    modelBuilder.Entity<Transfer>()
-        .HasOne(t => t.User)
-        .WithMany(u => u.Transfers)
-        .HasForeignKey(t => t.UserId);
-
-    modelBuilder.Entity<Deposit>().HasKey(d => d.DepositId);
-    modelBuilder.Entity<Refund>().HasKey(r => r.RefundId);
-    modelBuilder.Entity<Transfer>().HasKey(t => t.TransferId);
+    modelBuilder.Entity<GetPaymentStatus>()
+        .HasOne(g => g.CreatePayment)
+        .WithOne(c => c.PaymentStatus)
+        .HasForeignKey<GetPaymentStatus>(g => g.CreatePaymentId);
   }
 }

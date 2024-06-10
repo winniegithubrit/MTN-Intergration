@@ -61,8 +61,7 @@ namespace BankSystem.Services
       }
     }
 
-
-
+    
     public async Task<string> GetAccountBalanceAsync(string accessToken, string targetEnvironment, string subscriptionKey)
     {
       _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -130,6 +129,30 @@ namespace BankSystem.Services
       {
         var responseBody = await response.Content.ReadAsStringAsync();
         var paymentStatusResponse = JsonSerializer.Deserialize<GetPaymentStatus>(responseBody);
+
+        var payment = await _context.CreatePayments
+            .FirstOrDefaultAsync(p => p.ExternalTransactionId == xReferenceId);
+
+        if (payment != null)
+        {
+          if (paymentStatusResponse != null) 
+          {
+            if (payment.PaymentStatus == null)
+            {
+              payment.PaymentStatus = paymentStatusResponse;
+              paymentStatusResponse.CreatePaymentId = payment.Id;
+              _context.PaymentStatuses.Add(paymentStatusResponse);
+            }
+            else
+            {
+              payment.PaymentStatus.Status = paymentStatusResponse.Status;
+              _context.PaymentStatuses.Update(payment.PaymentStatus);
+            }
+
+            await _context.SaveChangesAsync();
+          }
+        }
+
         return paymentStatusResponse;
       }
       else
@@ -137,5 +160,19 @@ namespace BankSystem.Services
         throw new HttpRequestException($"Failed to get payment status: {response.StatusCode} - {response.ReasonPhrase}");
       }
     }
-  }
+
+    public async Task CancelInvoiceAsync(string externalId)
+    {
+      var invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.ExternalId == externalId);
+      if (invoice != null)
+      {
+        _context.Invoices.Remove(invoice);
+        await _context.SaveChangesAsync();
+      }
+      else
+      {
+        throw new ArgumentException("Invoice not found.");
+      }
+    }
+}
 }

@@ -5,6 +5,11 @@ using BankSystem.Services;
 using BankSystem.Options;
 using Microsoft.Extensions.Options;
 using Pomelo.EntityFrameworkCore.MySql;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 public class Program
 {
