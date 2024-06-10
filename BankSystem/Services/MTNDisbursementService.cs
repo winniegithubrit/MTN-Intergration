@@ -32,6 +32,13 @@ namespace BankSystem.Services
       _context.Deposits.Add(deposit);
       await _context.SaveChangesAsync();
 
+      // Retrieve user information using MSISDN from the deposit
+      var userInfo = await GetBasicUserInfoAsync(deposit.Payee.PartyId);
+      _logger.LogInformation($"Retrieved user info for MSISDN {deposit.Payee.PartyId}: {JsonSerializer.Serialize(userInfo)}");
+      _context.BasicUserInfomation.Add(userInfo);
+      await _context.SaveChangesAsync();
+
+     
       var requestUrl = "https://sandbox.momodeveloper.mtn.com/disbursement/v2_0/deposit";
       var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
 
@@ -70,6 +77,7 @@ namespace BankSystem.Services
 
       return deposit;
     }
+
     // get account balance
     public async Task<BalanceResponse> GetAccountBalanceAsync()
     {
@@ -100,7 +108,40 @@ namespace BankSystem.Services
 
       return balanceResponse;
     }
+    public async Task<BasicUserInfoResponse> GetBasicUserInfoAsync(string? msisdn)
+    {
+      if (msisdn == null)
+      {
+        throw new ArgumentNullException(nameof(msisdn), "MSISDN cannot be null.");
+      }
 
+      var requestUrl = $"https://sandbox.momodeveloper.mtn.com/disbursement/v1_0/accountholder/msisdn/{msisdn}/basicuserinfo";
+      var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+
+      request.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
+      request.Headers.Add("X-Target-Environment", "sandbox");
+      request.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
+
+      _logger.LogInformation($"Sending request to {requestUrl} to get basic user info for MSISDN: {msisdn}");
+
+      var response = await _httpClient.SendAsync(request);
+
+      var responseBody = await response.Content.ReadAsStringAsync();
+      if (!response.IsSuccessStatusCode)
+      {
+        _logger.LogError($"An error occurred while getting basic user info for MSISDN {msisdn}: {response.ReasonPhrase}. Response: {responseBody}");
+        response.EnsureSuccessStatusCode();
+      }
+
+      var userInfoResponse = JsonSerializer.Deserialize<BasicUserInfoResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+      if (userInfoResponse == null)
+      {
+        throw new InvalidOperationException("Failed to retrieve user info. The response is null.");
+      }
+
+      return userInfoResponse;
+    }
 
   }
 }

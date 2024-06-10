@@ -55,5 +55,20 @@ namespace BankSystem.Controllers
         return StatusCode(500, $"An error occurred while getting account balance: {ex.Message}");
       }
     }
+    [HttpGet("user-info/{msisdn}")]
+    public async Task<IActionResult> GetUserInfo(string msisdn)
+    {
+      try
+      {
+        var userInfo = await _mtnDisbursementService.GetBasicUserInfoAsync(msisdn);
+        return Ok(userInfo);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while getting user info for MSISDN {msisdn}: {ex.Message}");
+        return StatusCode(500, $"An error occurred while getting user info for MSISDN {msisdn}: {ex.Message}");
+      }
+    }
+
   }
 }

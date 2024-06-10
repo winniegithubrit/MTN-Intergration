@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
   
   public DbSet<Deposit> Deposits { get; set; }
   public DbSet<CreateInvoiceModel> Invoices { get; set; }
+  public DbSet<BasicUserInfoResponse> BasicUserInfomation { get; set; }
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -72,5 +73,39 @@ public class ApplicationDbContext : DbContext
         .HasOne(g => g.CreatePayment)
         .WithOne(c => c.PaymentStatus)
         .HasForeignKey<GetPaymentStatus>(g => g.CreatePaymentId);
+
+    // Seed data for BasicUserInfoResponse
+    modelBuilder.Entity<BasicUserInfoResponse>().HasData(
+        new BasicUserInfoResponse
+        {
+          Id = 1,
+          GivenName = "Michael",
+          FamilyName = "Johnson",
+          Birthdate = "1980-07-15",
+          Locale = "en-US",
+          Gender = "Male",
+          Status = "Active"
+        },
+        new BasicUserInfoResponse
+        {
+          Id = 2,
+          GivenName = "Emily",
+          FamilyName = "Davis",
+          Birthdate = "1992-03-25",
+          Locale = "en-GB",
+          Gender = "Female",
+          Status = "Active"
+        },
+        new BasicUserInfoResponse
+        {
+          Id = 3,
+          GivenName = "Alexander",
+          FamilyName = "Martinez",
+          Birthdate = "1988-11-10",
+          Locale = "es-ES",
+          Gender = "Male",
+          Status = "Active"
+        }
+    );
   }
 }
