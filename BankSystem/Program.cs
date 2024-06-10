@@ -33,6 +33,14 @@ public class Program
         // Register MTNDisbursementService
         builder.Services.AddScoped<MTNDisbursementService>();
 
+        // Add JSON options configuration
+        builder.Services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.PropertyNamingPolicy = null; // Keeps the original property names
+                    options.JsonSerializerOptions.WriteIndented = true; // For pretty print, optional
+                });
+
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.

@@ -27,18 +27,37 @@ public class ApplicationDbContext : DbContext
 
     modelBuilder.Entity<CreatePayment>(entity =>
     {
-      entity.OwnsOne(p => p.Money);
+      entity.OwnsOne(p => p.Money, m =>
+      {
+        m.Property(p => p.Amount).IsRequired();
+        m.Property(p => p.Currency).IsRequired();
+      });
     });
 
     modelBuilder.Entity<RequestToPay>(entity =>
     {
-      entity.OwnsOne(p => p.Payer);
+      entity.OwnsOne(p => p.Payer, p =>
+      {
+        p.Property(p => p.PartyIdType).IsRequired();
+        p.Property(p => p.PartyId).IsRequired();
+      });
     });
 
     modelBuilder.Entity<CreateInvoiceModel>(entity =>
     {
-      entity.OwnsOne(i => i.IntendedPayer);
-      entity.OwnsOne(i => i.Payee);
+      entity.HasIndex(i => i.ExternalId).IsUnique();
+
+      entity.OwnsOne(i => i.IntendedPayer, ip =>
+      {
+        ip.Property(p => p.PartyIdType).IsRequired();
+        ip.Property(p => p.PartyId).IsRequired();
+      });
+
+      entity.OwnsOne(i => i.Payee, p =>
+      {
+        p.Property(p => p.PartyIdType).IsRequired();
+        p.Property(p => p.PartyId).IsRequired();
+      });
     });
 
     // Disbursement relationships
@@ -60,7 +79,5 @@ public class ApplicationDbContext : DbContext
     modelBuilder.Entity<Deposit>().HasKey(d => d.DepositId);
     modelBuilder.Entity<Refund>().HasKey(r => r.RefundId);
     modelBuilder.Entity<Transfer>().HasKey(t => t.TransferId);
-
-
   }
 }

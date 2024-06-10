@@ -3,22 +3,26 @@ using System;
 using System.Threading.Tasks;
 using BankSystem.Services;
 using BankSystem.Models;
-using Pomelo.EntityFrameworkCore.MySql;
+using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+
 
 namespace BankSystem.Controllers
 {
   [ApiController]
   [Route("api/[controller]")]
+  [Produces("application/json")] 
   public class MTNMomoController : ControllerBase
   {
     private readonly MtnMomoService _mtnMomoService;
     private readonly ILogger<MTNMomoController> _logger;
+    private readonly ApplicationDbContext _context;
 
-    public MTNMomoController(MtnMomoService mtnMomoService, ILogger<MTNMomoController> logger)
+    public MTNMomoController(MtnMomoService mtnMomoService, ILogger<MTNMomoController> logger, ApplicationDbContext context)
     {
       _mtnMomoService = mtnMomoService ?? throw new ArgumentNullException(nameof(mtnMomoService));
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
+      _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
     [HttpPost("request-to-pay")]
@@ -32,7 +36,7 @@ namespace BankSystem.Controllers
           string.IsNullOrEmpty(model.Payer.PartyIdType) ||
           string.IsNullOrEmpty(model.Payer.PartyId))
       {
-        return BadRequest("Invalid request parameters.");
+        return BadRequest(new { message = "Invalid request parameters." });
       }
 
       try
@@ -43,7 +47,7 @@ namespace BankSystem.Controllers
       catch (Exception ex)
       {
         _logger.LogError($"An error occurred while creating the request to pay: {ex.Message}");
-        return StatusCode(500, $"An error occurred while creating the request to pay: {ex.Message}");
+        return StatusCode(500, new { message = $"An error occurred while creating the request to pay: {ex.Message}" });
       }
     }
 
@@ -58,7 +62,7 @@ namespace BankSystem.Controllers
           string.IsNullOrEmpty(model.CustomerReference) ||
           string.IsNullOrEmpty(model.ServiceProviderUserName))
       {
-        return BadRequest("Invalid request parameters.");
+        return BadRequest(new { message = "Invalid request parameters." });
       }
 
       try
@@ -68,7 +72,7 @@ namespace BankSystem.Controllers
       }
       catch (Exception ex)
       {
-        return StatusCode(500, $"An error occurred while creating the payment: {ex.Message}");
+        return StatusCode(500, new { message = $"An error occurred while creating the payment: {ex.Message}" });
       }
     }
 
@@ -77,11 +81,9 @@ namespace BankSystem.Controllers
     {
       try
       {
-        
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA3VDExOjQ5OjI2LjcyNCIsInNlc3Npb25JZCI6ImI5MmMwYjk1LTY1ZDQtNGQxOS1hYjZlLTA2OWExZjYyZDQ3MiJ9.MEh-sw8CbozaRHqSpaBB6-JsytaYCNmY9IReQb-NxROD8E8pD0gd_gqaoesq5ZI_PosKeL4Gl4gVCVZtlCSdrLKMCN2HheRbSAelJWL0kipcvBzzSvcCuZqIDG67OvTyGeKqOf3HY6H4Sj3hCBjxDaNRFYPprsDT-LX2g5UZ-F3DgheIjifiW0_IhQi0RjclXwS2eQMCWHVjbRWwsI3w-GEuADYM8bTgO2qV0mIPK00FSrZ2z99_ej5M84ifV1ku4HnehS2tgknSriYdbln9Cv4Gj6neom0V4b9SSwqLImyvkjHKmLLThygELGg99XdYET2hAmQW2vO5oR0lDBub5A";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTEwVDA5OjQ5OjA1LjczMiIsInNlc3Npb25JZCI6IjVlY2U1NjUyLWE3ZWMtNDE5NC04ODA5LWNjNDZjNjE0Mjk4MiJ9.GyXrf6GhVhSBCPm1xdA_xWs_QPXJYHDyRNcMyKu6u5PDjNMbUKh34AAESWfGVbGwaGp93R8IzFLYiCdRNS8lpPravGkaJeDAupvQUnQlFRo-Ectux9IAW8Y1HE4V7C_F3_pz9A_PzTHRhrFe_5SHcHtkJWVEiFo3wBRalYFk04gKIoPSMy1vW9RFAlKYGZ97UWd8-YbiVWUC-7GNId4CeTIYv2vm2WDXQOr1MNy45yfdeP2-zucI6a1OXGiQKSOn-wXV6cK7liUAjRbAFBlSOxcLg9kb1Rjxmu81xM6U-yTmjqJdzxBHPyJbap8plz6CbnRto4MhqaQD8Emr6taA1w";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
-
         var result = await _mtnMomoService.GetAccountBalanceAsync(accessToken, targetEnvironment, subscriptionKey);
         return Ok(result);
       }
@@ -90,7 +92,6 @@ namespace BankSystem.Controllers
         return StatusCode(500, $"An error occurred while fetching account balance: {ex.Message}");
       }
     }
-
     [HttpGet("account-balance/{currency}")]
     public async Task<IActionResult> GetAccountBalance(string currency)
     {
@@ -98,9 +99,9 @@ namespace BankSystem.Controllers
       {
         if (string.IsNullOrWhiteSpace(currency))
         {
-          return BadRequest("Currency parameter is required.");
+          return BadRequest(new { message = "Currency parameter is required." });
         }
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDExOjI0OjE2LjkxMyIsInNlc3Npb25JZCI6Ijg3NTUyNDUzLTU2NDQtNGM0Mi1hYzVlLTg4MTJhMmJlODViZiJ9.ZLKX1k8MJlp0psvRgVqpqbEfilLhHe7eJIGywIuonNp1aAcppHa-zBgZyGfc_YGWbiWF5Sv1xQDMzjFUidFDp5YwTn-dvrCdy74xqNe5piHDdXQkO-BPKQVVeN_psYdL-N2BrolxxK5YyxXEdrX2_tcN3vUZD9ln2iqbi2TK_q23O65miSwMr6KYNLbdgn7bTC8Tk_LAzIL3-QQoC-PfHiFrDChvtm4phpXZpOL9whUDxDR4G31lq638uWXTRYyGxHItIcEHCIWTcb7clowyNWYL32Mmq4e_imDeQjA4O6JiRNf7vxSV0ZGcu6oWYAWl28yNqdEPI9toW63ZD2LYmg";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTEwVDA5OjQ5OjA1LjczMiIsInNlc3Npb25JZCI6IjVlY2U1NjUyLWE3ZWMtNDE5NC04ODA5LWNjNDZjNjE0Mjk4MiJ9.GyXrf6GhVhSBCPm1xdA_xWs_QPXJYHDyRNcMyKu6u5PDjNMbUKh34AAESWfGVbGwaGp93R8IzFLYiCdRNS8lpPravGkaJeDAupvQUnQlFRo-Ectux9IAW8Y1HE4V7C_F3_pz9A_PzTHRhrFe_5SHcHtkJWVEiFo3wBRalYFk04gKIoPSMy1vW9RFAlKYGZ97UWd8-YbiVWUC-7GNId4CeTIYv2vm2WDXQOr1MNy45yfdeP2-zucI6a1OXGiQKSOn-wXV6cK7liUAjRbAFBlSOxcLg9kb1Rjxmu81xM6U-yTmjqJdzxBHPyJbap8plz6CbnRto4MhqaQD8Emr6taA1w";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
         var result = await _mtnMomoService.GetAccountBalanceInSpecificCurrencyAsync(accessToken, targetEnvironment, subscriptionKey, currency);
@@ -111,17 +112,17 @@ namespace BankSystem.Controllers
         _logger.LogError($"HTTP request failed: {ex.Message}");
         if (ex.StatusCode.HasValue)
         {
-          return StatusCode((int)ex.StatusCode, ex.Message);
+          return StatusCode((int)ex.StatusCode, new { message = ex.Message });
         }
         else
         {
-          return StatusCode(500, "An error occurred while fetching account balance. Please try again later.");
+          return StatusCode(500, new { message = "An error occurred while fetching account balance. Please try again later." });
         }
       }
       catch (Exception ex)
       {
         _logger.LogError($"An error occurred: {ex.Message}");
-        return StatusCode(500, $"An error occurred while fetching account balance: {ex.Message}");
+        return StatusCode(500, new { message = $"An error occurred while fetching account balance: {ex.Message}" });
       }
     }
 
@@ -132,42 +133,32 @@ namespace BankSystem.Controllers
       {
         if (string.IsNullOrWhiteSpace(accountHolderMSISDN))
         {
-          return BadRequest("Account holder MSISDN parameter is required.");
+          return BadRequest(new { message = "Account holder MSISDN parameter is required." });
         }
 
-        // Replace 'accessToken', 'targetEnvironment', and 'subscriptionKey' with actual values
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA3VDExOjQ5OjI2LjcyNCIsInNlc3Npb25JZCI6ImI5MmMwYjk1LTY1ZDQtNGQxOS1hYjZlLTA2OWExZjYyZDQ3MiJ9.MEh-sw8CbozaRHqSpaBB6-JsytaYCNmY9IReQb-NxROD8E8pD0gd_gqaoesq5ZI_PosKeL4Gl4gVCVZtlCSdrLKMCN2HheRbSAelJWL0kipcvBzzSvcCuZqIDG67OvTyGeKqOf3HY6H4Sj3hCBjxDaNRFYPprsDT-LX2g5UZ-F3DgheIjifiW0_IhQi0RjclXwS2eQMCWHVjbRWwsI3w-GEuADYM8bTgO2qV0mIPK00FSrZ2z99_ej5M84ifV1ku4HnehS2tgknSriYdbln9Cv4Gj6neom0V4b9SSwqLImyvkjHKmLLThygELGg99XdYET2hAmQW2vO5oR0lDBub5A";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTEwVDE3OjA3OjQ4Ljk2MCIsInNlc3Npb25JZCI6Ijg1NDY2MzEyLTczNTMtNDBiOS1iYTZjLTg2MjU0MjY5MjNjMyJ9.T-7zTfEPg_nDEjPidvdRkEK1dpyOzVrbj4vsUGah_JPBUbK6xej1lD4pH1UiEUpnvOsSalpi_dKXU3bUUW9__A1Zyo9u7UhN4rxIQCbSl8FAyoYyvBPMZTwh4r37me-m-0a2MC_CV53WED5Z7VC-CUVEu7sSWB9h6nUcy-6sKRy0ZPlr1dDPh0sKGesXHNgAWesWDC-6ua0pR-WORa4VNS6sg_oRO8W-LUWqmhmORWyRUKrSvasoaCUYT_h6HjxPefiHHntR1N0S7yNHEieWUREZOlY1V2xy7lhAlFoq8sh4OH4ymG9wro2hI3-NKZqgFLt4vfz-RKLa1oqWSYBZjQ";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
-
-        // Call the service to get the basic user information
         var result = await _mtnMomoService.GetBasicUserInfoAsync(accessToken, targetEnvironment, subscriptionKey, accountHolderMSISDN);
-
-        // Return the basic user information as JSON
         return Ok(result);
       }
       catch (HttpRequestException ex)
       {
-        // Log the exception
         _logger.LogError($"HTTP request failed: {ex.Message}");
 
-        // Handle specific HTTP request exceptions
         if (ex.StatusCode.HasValue)
         {
-          return StatusCode((int)ex.StatusCode, ex.Message);
+          return StatusCode((int)ex.StatusCode, new { message = ex.Message });
         }
         else
         {
-          return StatusCode(500, "An error occurred while fetching basic user information. Please try again later.");
+          return StatusCode(500, new { message = "An error occurred while fetching basic user information. Please try again later." });
         }
       }
       catch (Exception ex)
       {
-        // Log the exception
         _logger.LogError($"An error occurred: {ex.Message}");
-
-        // Handle any other exceptions
-        return StatusCode(500, $"An error occurred while fetching basic user information: {ex.Message}");
+        return StatusCode(500, new { message = $"An error occurred while fetching basic user information: {ex.Message}" });
       }
     }
 
@@ -178,11 +169,10 @@ namespace BankSystem.Controllers
       {
         if (string.IsNullOrWhiteSpace(xReferenceId))
         {
-          return BadRequest("X-Reference-Id parameter is required.");
+          return BadRequest(new { message = "X-Reference-Id parameter is required." });
         }
 
-       
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTA2VDExOjQ0OjQyLjI2NyIsInNlc3Npb25JZCI6ImJhY2MzZjZhLTQxZTktNDZiNy1iYTJmLTI2NGZjMjM3NjNiZiJ9.OX02ZBvn7AXZwkfwdgUZg8mjMz4iYKqWua7O8__ehO0d5IBlB86LaM3ZM-LZCWp2S9hA_4ZUQk5mxr707aHzVlAXNMBx79_uhFdvC8ParkFtJ2-e6kY_nt9k4g8AGVI5CSSwdIcv9DIX964OYqxnKtof4bnc_bOeo6dcoQAlsOvscPDpJJJs2TtBLZEkksIwUYDDVeQDl69RCv1P96VHaN7cmgeE5GDY03maExFiwez366Sv99rFdCcHKfQKQd5-ax49wamx2DM8PxxVMLqhhCZdiZ324HERLvley4jtb3A5GejUVtTr9FMITg4OvID7tykJojF9tBJ2FC0Nv6dX-g";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTEwVDA5OjQ5OjA1LjczMiIsInNlc3Npb25JZCI6IjVlY2U1NjUyLWE3ZWMtNDE5NC04ODA5LWNjNDZjNjE0Mjk4MiJ9.GyXrf6GhVhSBCPm1xdA_xWs_QPXJYHDyRNcMyKu6u5PDjNMbUKh34AAESWfGVbGwaGp93R8IzFLYiCdRNS8lpPravGkaJeDAupvQUnQlFRo-Ectux9IAW8Y1HE4V7C_F3_pz9A_PzTHRhrFe_5SHcHtkJWVEiFo3wBRalYFk04gKIoPSMy1vW9RFAlKYGZ97UWd8-YbiVWUC-7GNId4CeTIYv2vm2WDXQOr1MNy45yfdeP2-zucI6a1OXGiQKSOn-wXV6cK7liUAjRbAFBlSOxcLg9kb1Rjxmu81xM6U-yTmjqJdzxBHPyJbap8plz6CbnRto4MhqaQD8Emr6taA1w";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
         var result = await _mtnMomoService.GetPaymentStatusAsync(accessToken, targetEnvironment, subscriptionKey, xReferenceId);
@@ -193,17 +183,17 @@ namespace BankSystem.Controllers
         _logger.LogError($"HTTP request failed: {ex.Message}");
         if (ex.StatusCode.HasValue)
         {
-          return StatusCode((int)ex.StatusCode, ex.Message);
+          return StatusCode((int)ex.StatusCode, new { message = ex.Message });
         }
         else
         {
-          return StatusCode(500, "An error occurred while getting payment status. Please try again later.");
+          return StatusCode(500, new { message = "An error occurred while getting payment status. Please try again later." });
         }
       }
       catch (Exception ex)
       {
         _logger.LogError($"An error occurred: {ex.Message}");
-        return StatusCode(500, $"An error occurred while getting payment status: {ex.Message}");
+        return StatusCode(500, new { message = $"An error occurred while getting payment status: {ex.Message}" });
       }
     }
 
@@ -218,7 +208,7 @@ namespace BankSystem.Controllers
           string.IsNullOrEmpty(model.IntendedPayer.PartyIdType) ||
           string.IsNullOrEmpty(model.IntendedPayer.PartyId))
       {
-        return BadRequest("Invalid request parameters.");
+        return BadRequest(new { message = "Invalid request parameters." });
       }
 
       try
@@ -229,10 +219,50 @@ namespace BankSystem.Controllers
       catch (Exception ex)
       {
         _logger.LogError($"An error occurred while creating the invoice: {ex.Message}");
-        return StatusCode(500, $"An error occurred while creating the invoice: {ex.Message}");
+        return StatusCode(500, new { message = $"An error occurred while creating the invoice: {ex.Message}" });
+    
+    }
+  }
+
+    [HttpGet("get-invoice-status/{externalId}")]
+    public async Task<IActionResult> GetInvoiceStatus(string externalId)
+    {
+      if (string.IsNullOrEmpty(externalId))
+      {
+        return BadRequest(new { message = "Invalid request parameters." });
+      }
+
+      _logger.LogInformation($"Fetching status for invoice with ExternalId: {externalId}");
+
+      try
+      {
+        var invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.ExternalId == externalId);
+        if (invoice == null)
+        {
+          _logger.LogWarning($"Invoice with ExternalId: {externalId} not found.");
+          return NotFound(new { message = "Invoice not found." });
+        }
+
+        string statusMessage = string.Empty;
+
+        if (invoice.Status == "Paid")
+        {
+          statusMessage = "Paid";
+        }
+        else
+        {
+          statusMessage = "Pending";
+        }
+
+        _logger.LogInformation($"Invoice status for ExternalId: {externalId} is {statusMessage}");
+        return Ok(new { status = statusMessage });
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while getting the invoice status: {ex.Message}");
+        return StatusCode(500, new { message = $"An error occurred while getting the invoice status: {ex.Message}" });
       }
     }
-
 
   }
 }

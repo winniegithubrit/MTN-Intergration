@@ -36,15 +36,35 @@ namespace BankSystem.Services
 
     public async Task<string> CreateInvoiceAsync(CreateInvoiceModel model)
     {
+      
+      if (model.IntendedPayer == null || string.IsNullOrEmpty(model.IntendedPayer.PartyIdType) || string.IsNullOrEmpty(model.IntendedPayer.PartyId) ||
+          model.Payee == null || string.IsNullOrEmpty(model.Payee.PartyIdType) || string.IsNullOrEmpty(model.Payee.PartyId))
+      {
+        throw new ArgumentException("IntendedPayer and Payee must be fully specified.");
+      }
+
       _context.Invoices.Add(model);
       await _context.SaveChangesAsync();
 
       return $"Invoice created successfully with external ID: {model.ExternalId}";
     }
 
+
+
+    public async Task UpdateInvoiceStatusAsync(string externalId, string newStatus)
+    {
+      var invoice = await _context.Invoices.FirstOrDefaultAsync(i => i.ExternalId == externalId);
+      if (invoice != null)
+      {
+        invoice.Status = newStatus;
+        await _context.SaveChangesAsync();
+      }
+    }
+
+
+
     public async Task<string> GetAccountBalanceAsync(string accessToken, string targetEnvironment, string subscriptionKey)
     {
-    
       _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
       _httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
       _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", targetEnvironment);
@@ -52,6 +72,7 @@ namespace BankSystem.Services
       var responseBody = await response.Content.ReadAsStringAsync();
       return responseBody;
     }
+
 
 
     public async Task<string> GetAccountBalanceInSpecificCurrencyAsync(string accessToken, string targetEnvironment, string subscriptionKey, string currency)

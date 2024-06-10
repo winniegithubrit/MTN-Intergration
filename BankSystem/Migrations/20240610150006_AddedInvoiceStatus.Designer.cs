@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240610150006_AddedInvoiceStatus")]
+    partial class AddedInvoiceStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -342,19 +345,15 @@ namespace BankSystem.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("ExternalId")
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("ValidityDuration")
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.ToTable("Invoices");
                 });
@@ -367,11 +366,9 @@ namespace BankSystem.Migrations
                                 .HasColumnType("int");
 
                             b1.Property<string>("Amount")
-                                .IsRequired()
                                 .HasColumnType("longtext");
 
                             b1.Property<string>("Currency")
-                                .IsRequired()
                                 .HasColumnType("longtext");
 
                             b1.HasKey("CreatePaymentId");
@@ -430,11 +427,9 @@ namespace BankSystem.Migrations
                                 .HasColumnType("int");
 
                             b1.Property<string>("PartyId")
-                                .IsRequired()
                                 .HasColumnType("longtext");
 
                             b1.Property<string>("PartyIdType")
-                                .IsRequired()
                                 .HasColumnType("longtext");
 
                             b1.HasKey("RequestToPayId");
@@ -473,11 +468,9 @@ namespace BankSystem.Migrations
                                 .HasColumnType("int");
 
                             b1.Property<string>("PartyId")
-                                .IsRequired()
                                 .HasColumnType("longtext");
 
                             b1.Property<string>("PartyIdType")
-                                .IsRequired()
                                 .HasColumnType("longtext");
 
                             b1.HasKey("CreateInvoiceModelId");
@@ -494,11 +487,9 @@ namespace BankSystem.Migrations
                                 .HasColumnType("int");
 
                             b1.Property<string>("PartyId")
-                                .IsRequired()
                                 .HasColumnType("longtext");
 
                             b1.Property<string>("PartyIdType")
-                                .IsRequired()
                                 .HasColumnType("longtext");
 
                             b1.HasKey("CreateInvoiceModelId");
