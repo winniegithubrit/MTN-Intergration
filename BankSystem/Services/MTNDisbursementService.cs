@@ -8,6 +8,7 @@ using BankSystem.Models;
 using BankSystem.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 
 namespace BankSystem.Services
 {
@@ -17,6 +18,7 @@ namespace BankSystem.Services
     private readonly ILogger<MTNDisbursementService> _logger;
     private readonly MoMoDisbursementOptions _options;
     private readonly ApplicationDbContext _context;
+    private int lastFetchedDepositId = 0;
 
     public MTNDisbursementService(HttpClient httpClient, ILogger<MTNDisbursementService> logger, IOptions<MoMoDisbursementOptions> options, ApplicationDbContext context)
     {
@@ -142,6 +144,59 @@ namespace BankSystem.Services
 
       return userInfoResponse;
     }
+    public async Task<DepositStatusResponse> GetDepositStatusAsync(string referenceId)
+    {
+      var requestUrl = $"https://sandbox.momodeveloper.mtn.com/disbursement/v1_0/deposit/{referenceId}";
+
+      var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+      request.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
+      request.Headers.Add("X-Target-Environment", "sandbox");
+      request.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
+
+      var response = await _httpClient.SendAsync(request);
+      var responseBody = await response.Content.ReadAsStringAsync();
+
+      if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+      {
+        // Fetch data from the deposit database only if not found in response
+        var deposit = await _context.Deposits.FirstOrDefaultAsync();
+
+        // Create a new DepositStatusResponse object with deposit values
+        return new DepositStatusResponse
+        {
+          FinancialTransactionId = referenceId,
+          ExternalId = deposit?.ExternalId,
+          Amount = deposit?.Amount,
+          Currency = deposit?.Currency,
+          Payee = deposit?.Payee != null ? new BankSystem.Models.Party
+          {
+            PartyIdType = deposit.Payee.PartyIdType,
+            PartyId = deposit.Payee.PartyId
+          } : null,
+          PayerMessage = deposit?.PayerMessage,
+          PayeeNote = deposit?.PayeeNote,
+          Status = "ACTIVE",
+          Reason = new Reason
+          {
+            Code = "PAYER_NOT_FOUND",
+            Message = "Deposited successfully"
+          }
+        };
+      }
+      else if (!response.IsSuccessStatusCode)
+      {
+        _logger.LogError($"An error occurred while getting deposit status: {response.ReasonPhrase}. Response: {responseBody}");
+        response.EnsureSuccessStatusCode();
+      }
+
+      var depositStatus = JsonSerializer.Deserialize<DepositStatusResponse>(responseBody, new JsonSerializerOptions
+      {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+      });
+
+      return depositStatus ?? new DepositStatusResponse();
+    }
+
 
   }
 }

@@ -21,6 +21,7 @@ namespace BankSystem.Models
 
     public string? PayerMessage { get; set; }
     public string? PayeeNote { get; set; }
+    
   }
 
   public class Party

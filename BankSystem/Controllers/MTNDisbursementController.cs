@@ -69,6 +69,32 @@ namespace BankSystem.Controllers
         return StatusCode(500, $"An error occurred while getting user info for MSISDN {msisdn}: {ex.Message}");
       }
     }
+    [HttpGet("deposit/{referenceId}")]
+    public async Task<IActionResult> GetDepositStatus(string referenceId)
+    {
+      try
+      {
+        if (string.IsNullOrEmpty(referenceId))
+        {
+          return BadRequest("Reference ID is required.");
+        }
+
+        var result = await _mtnDisbursementService.GetDepositStatusAsync(referenceId);
+
+        if (result == null)
+        {
+          return NotFound("Deposit not found.");
+        }
+
+        return Ok(result);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while getting deposit status: {ex.Message}");
+        return StatusCode(500, $"An error occurred while getting deposit status: {ex.Message}");
+      }
+    }
+
 
   }
 }
