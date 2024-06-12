@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240612104132_UpdateReferenceIdToRefundUpdate")]
+    partial class UpdateReferenceIdToRefundUpdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,7 +52,7 @@ namespace BankSystem.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BasicUserInfomation", (string)null);
+                    b.ToTable("BasicUserInfomation");
                 });
 
             modelBuilder.Entity("BankSystem.Models.CreatePayment", b =>
@@ -71,7 +74,7 @@ namespace BankSystem.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CreatePayments", (string)null);
+                    b.ToTable("CreatePayments");
                 });
 
             modelBuilder.Entity("BankSystem.Models.Deposit", b =>
@@ -102,7 +105,7 @@ namespace BankSystem.Migrations
 
                     b.HasKey("DepositId");
 
-                    b.ToTable("Deposits", (string)null);
+                    b.ToTable("Deposits");
                 });
 
             modelBuilder.Entity("BankSystem.Models.GetAccountBalance", b =>
@@ -121,7 +124,7 @@ namespace BankSystem.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AccountBalances", (string)null);
+                    b.ToTable("AccountBalances");
                 });
 
             modelBuilder.Entity("BankSystem.Models.GetAccountBalanceInSpecificCurrency", b =>
@@ -140,7 +143,7 @@ namespace BankSystem.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AccountBalancesInSpecificCurrency", (string)null);
+                    b.ToTable("AccountBalancesInSpecificCurrency");
                 });
 
             modelBuilder.Entity("BankSystem.Models.GetBasicUserInfo", b =>
@@ -171,7 +174,7 @@ namespace BankSystem.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BasicUserInfos", (string)null);
+                    b.ToTable("BasicUserInfos");
                 });
 
             modelBuilder.Entity("BankSystem.Models.Refund", b =>
@@ -205,7 +208,7 @@ namespace BankSystem.Migrations
 
                     b.HasIndex("ReferenceIdToRefund");
 
-                    b.ToTable("Refunds", (string)null);
+                    b.ToTable("Refunds");
                 });
 
             modelBuilder.Entity("BankSystem.Models.RequestToPay", b =>
@@ -231,7 +234,7 @@ namespace BankSystem.Migrations
                     b.HasKey("Id")
                         .HasName("PK_RequestToPays");
 
-                    b.ToTable("RequestToPays", (string)null);
+                    b.ToTable("RequestToPays");
                 });
 
             modelBuilder.Entity("CreateInvoiceModel", b =>
@@ -266,7 +269,7 @@ namespace BankSystem.Migrations
                     b.HasIndex("ExternalId")
                         .IsUnique();
 
-                    b.ToTable("Invoices", (string)null);
+                    b.ToTable("Invoices");
                 });
 
             modelBuilder.Entity("GetPaymentStatus", b =>
@@ -291,12 +294,12 @@ namespace BankSystem.Migrations
                     b.HasIndex("CreatePaymentId")
                         .IsUnique();
 
-                    b.ToTable("PaymentStatuses", (string)null);
+                    b.ToTable("PaymentStatuses");
                 });
 
             modelBuilder.Entity("BankSystem.Models.CreatePayment", b =>
                 {
-                    b.OwnsOne("BankSystem.Models.CreatePayment.Money#BankSystem.Models.Money", "Money", b1 =>
+                    b.OwnsOne("BankSystem.Models.Money", "Money", b1 =>
                         {
                             b1.Property<int>("CreatePaymentId")
                                 .HasColumnType("int");
@@ -311,7 +314,7 @@ namespace BankSystem.Migrations
 
                             b1.HasKey("CreatePaymentId");
 
-                            b1.ToTable("CreatePayments", (string)null);
+                            b1.ToTable("CreatePayments");
 
                             b1.WithOwner()
                                 .HasForeignKey("CreatePaymentId");
@@ -322,7 +325,7 @@ namespace BankSystem.Migrations
 
             modelBuilder.Entity("BankSystem.Models.Deposit", b =>
                 {
-                    b.OwnsOne("BankSystem.Models.Deposit.Payee#BankSystem.Models.Party", "Payee", b1 =>
+                    b.OwnsOne("BankSystem.Models.Party", "Payee", b1 =>
                         {
                             b1.Property<int>("DepositId")
                                 .HasColumnType("int");
@@ -337,7 +340,7 @@ namespace BankSystem.Migrations
 
                             b1.HasKey("DepositId");
 
-                            b1.ToTable("Deposits", (string)null);
+                            b1.ToTable("Deposits");
 
                             b1.WithOwner()
                                 .HasForeignKey("DepositId");
@@ -360,7 +363,7 @@ namespace BankSystem.Migrations
 
             modelBuilder.Entity("BankSystem.Models.RequestToPay", b =>
                 {
-                    b.OwnsOne("BankSystem.Models.RequestToPay.Payer#BankSystem.Models.Payer", "Payer", b1 =>
+                    b.OwnsOne("BankSystem.Models.Payer", "Payer", b1 =>
                         {
                             b1.Property<string>("RequestToPayId")
                                 .HasColumnType("varchar(255)");
@@ -375,7 +378,7 @@ namespace BankSystem.Migrations
 
                             b1.HasKey("RequestToPayId");
 
-                            b1.ToTable("RequestToPays", (string)null);
+                            b1.ToTable("RequestToPays");
 
                             b1.WithOwner()
                                 .HasForeignKey("RequestToPayId");
@@ -386,7 +389,7 @@ namespace BankSystem.Migrations
 
             modelBuilder.Entity("CreateInvoiceModel", b =>
                 {
-                    b.OwnsOne("CreateInvoiceModel.IntendedPayer#Party", "IntendedPayer", b1 =>
+                    b.OwnsOne("Party", "IntendedPayer", b1 =>
                         {
                             b1.Property<int>("CreateInvoiceModelId")
                                 .HasColumnType("int");
@@ -401,13 +404,13 @@ namespace BankSystem.Migrations
 
                             b1.HasKey("CreateInvoiceModelId");
 
-                            b1.ToTable("Invoices", (string)null);
+                            b1.ToTable("Invoices");
 
                             b1.WithOwner()
                                 .HasForeignKey("CreateInvoiceModelId");
                         });
 
-                    b.OwnsOne("CreateInvoiceModel.Payee#Party", "Payee", b1 =>
+                    b.OwnsOne("Party", "Payee", b1 =>
                         {
                             b1.Property<int>("CreateInvoiceModelId")
                                 .HasColumnType("int");
@@ -422,7 +425,7 @@ namespace BankSystem.Migrations
 
                             b1.HasKey("CreateInvoiceModelId");
 
-                            b1.ToTable("Invoices", (string)null);
+                            b1.ToTable("Invoices");
 
                             b1.WithOwner()
                                 .HasForeignKey("CreateInvoiceModelId");

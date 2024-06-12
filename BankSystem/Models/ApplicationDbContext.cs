@@ -14,10 +14,10 @@ public class ApplicationDbContext : DbContext
   public DbSet<GetAccountBalance> AccountBalances { get; set; }
   public DbSet<GetAccountBalanceInSpecificCurrency> AccountBalancesInSpecificCurrency { get; set; }
   public DbSet<GetBasicUserInfo> BasicUserInfos { get; set; }
-  
   public DbSet<Deposit> Deposits { get; set; }
   public DbSet<CreateInvoiceModel> Invoices { get; set; }
   public DbSet<BasicUserInfoResponse> BasicUserInfomation { get; set; }
+  public DbSet<Refund> Refunds { get; set; }
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -26,19 +26,23 @@ public class ApplicationDbContext : DbContext
     modelBuilder.Entity<CreatePayment>(entity =>
     {
       entity.OwnsOne(p => p.Money, m =>
-      {
-        m.Property(p => p.Amount).IsRequired();
-        m.Property(p => p.Currency).IsRequired();
-      });
+          {
+          m.Property(p => p.Amount).IsRequired();
+          m.Property(p => p.Currency).IsRequired();
+        });
     });
 
     modelBuilder.Entity<RequestToPay>(entity =>
     {
       entity.OwnsOne(p => p.Payer, p =>
-      {
-        p.Property(p => p.PartyIdType).IsRequired();
-        p.Property(p => p.PartyId).IsRequired();
-      });
+          {
+          p.Property(p => p.PartyIdType).IsRequired();
+          p.Property(p => p.PartyId).IsRequired();
+        });
+
+      entity.HasMany(rtp => rtp.Refunds)
+              .WithOne(r => r.RequestToPay)
+              .HasForeignKey(r => r.ReferenceIdToRefund);
     });
 
     modelBuilder.Entity<CreateInvoiceModel>(entity =>
@@ -46,16 +50,16 @@ public class ApplicationDbContext : DbContext
       entity.HasIndex(i => i.ExternalId).IsUnique();
 
       entity.OwnsOne(i => i.IntendedPayer, ip =>
-      {
-        ip.Property(p => p.PartyIdType).IsRequired();
-        ip.Property(p => p.PartyId).IsRequired();
-      });
+          {
+          ip.Property(p => p.PartyIdType).IsRequired();
+          ip.Property(p => p.PartyId).IsRequired();
+        });
 
       entity.OwnsOne(i => i.Payee, p =>
-      {
-        p.Property(p => p.PartyIdType).IsRequired();
-        p.Property(p => p.PartyId).IsRequired();
-      });
+          {
+          p.Property(p => p.PartyIdType).IsRequired();
+          p.Property(p => p.PartyId).IsRequired();
+        });
     });
 
     modelBuilder.Entity<Deposit>(entity =>
@@ -63,10 +67,10 @@ public class ApplicationDbContext : DbContext
       entity.HasKey(d => d.DepositId);
 
       entity.OwnsOne(d => d.Payee, p =>
-      {
-        p.Property(p => p.PartyIdType).IsRequired();
-        p.Property(p => p.PartyId).IsRequired();
-      });
+          {
+          p.Property(p => p.PartyIdType).IsRequired();
+          p.Property(p => p.PartyId).IsRequired();
+        });
     });
 
     modelBuilder.Entity<GetPaymentStatus>()
@@ -74,38 +78,17 @@ public class ApplicationDbContext : DbContext
         .WithOne(c => c.PaymentStatus)
         .HasForeignKey<GetPaymentStatus>(g => g.CreatePaymentId);
 
-    // Seed data for BasicUserInfoResponse
-    modelBuilder.Entity<BasicUserInfoResponse>().HasData(
-        new BasicUserInfoResponse
+
+    modelBuilder.Entity<RequestToPay>(entity =>
         {
-          Id = 1,
-          GivenName = "Michael",
-          FamilyName = "Johnson",
-          Birthdate = "1980-07-15",
-          Locale = "en-US",
-          Gender = "Male",
-          Status = "Active"
-        },
-        new BasicUserInfoResponse
-        {
-          Id = 2,
-          GivenName = "Emily",
-          FamilyName = "Davis",
-          Birthdate = "1992-03-25",
-          Locale = "en-GB",
-          Gender = "Female",
-          Status = "Active"
-        },
-        new BasicUserInfoResponse
-        {
-          Id = 3,
-          GivenName = "Alexander",
-          FamilyName = "Martinez",
-          Birthdate = "1988-11-10",
-          Locale = "es-ES",
-          Gender = "Male",
-          Status = "Active"
-        }
-    );
+          entity.HasKey(r => r.Id).HasName("PK_RequestToPays");
+          entity.Property(r => r.Id).HasColumnType("varchar(255)").IsRequired();
+          entity.HasIndex(r => r.Id).IsUnique(); 
+
+        
+          entity.HasMany(rtp => rtp.Refunds)
+                .WithOne(r => r.RequestToPay)
+                .HasForeignKey(r => r.ReferenceIdToRefund);
+        });
   }
 }

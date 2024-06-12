@@ -9,6 +9,7 @@ using BankSystem.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace BankSystem.Services
 {
@@ -18,7 +19,6 @@ namespace BankSystem.Services
     private readonly ILogger<MTNDisbursementService> _logger;
     private readonly MoMoDisbursementOptions _options;
     private readonly ApplicationDbContext _context;
-    private int lastFetchedDepositId = 0;
 
     public MTNDisbursementService(HttpClient httpClient, ILogger<MTNDisbursementService> logger, IOptions<MoMoDisbursementOptions> options, ApplicationDbContext context)
     {
@@ -40,7 +40,6 @@ namespace BankSystem.Services
       _context.BasicUserInfomation.Add(userInfo);
       await _context.SaveChangesAsync();
 
-     
       var requestUrl = "https://sandbox.momodeveloper.mtn.com/disbursement/v2_0/deposit";
       var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
 
@@ -110,6 +109,7 @@ namespace BankSystem.Services
 
       return balanceResponse;
     }
+
     public async Task<BasicUserInfoResponse> GetBasicUserInfoAsync(string? msisdn)
     {
       if (msisdn == null)
@@ -144,6 +144,7 @@ namespace BankSystem.Services
 
       return userInfoResponse;
     }
+
     public async Task<DepositStatusResponse> GetDepositStatusAsync(string referenceId)
     {
       var requestUrl = $"https://sandbox.momodeveloper.mtn.com/disbursement/v1_0/deposit/{referenceId}";
@@ -197,6 +198,73 @@ namespace BankSystem.Services
       return depositStatus ?? new DepositStatusResponse();
     }
 
+    public async Task<Refund> RefundAsync(Refund model)
+    {
+      try
+      {
+        _logger.LogInformation($"Attempting refund for ReferenceIdToRefund: {model.ReferenceIdToRefund}");
 
+        var requestToPay = await _context.RequestToPays.SingleOrDefaultAsync(rtp => rtp.ExternalId == model.ReferenceIdToRefund);
+
+        if (requestToPay == null)
+        {
+          _logger.LogError($"Request to Pay not found for ReferenceIdToRefund: {model.ReferenceIdToRefund}");
+          throw new Exception("Request to Pay not found.");
+        }
+
+        if (!Guid.TryParse(model.ReferenceIdToRefund, out var referenceIdToRefund))
+        {
+          _logger.LogError($"Invalid UUID format for ReferenceIdToRefund: {model.ReferenceIdToRefund}");
+          throw new Exception("Invalid UUID format for ReferenceIdToRefund.");
+        }
+
+        var refundRequest = new
+        {
+          amount = requestToPay.Amount?.ToString(CultureInfo.InvariantCulture),
+          currency = requestToPay.Currency,
+          externalId = requestToPay.ExternalId,
+          payerMessage = requestToPay.PayerMessage,
+          payeeNote = requestToPay.PayeeNote,
+          referenceIdToRefund = referenceIdToRefund.ToString()
+        };
+
+        var content = JsonSerializer.Serialize(refundRequest);
+        _logger.LogInformation($"Refund Request Payload: {content}");
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://sandbox.momodeveloper.mtn.com/disbursement/v2_0/refund")
+        {
+          Content = new StringContent(content, Encoding.UTF8, "application/json")
+        };
+
+        httpRequest.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
+        httpRequest.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
+        httpRequest.Headers.Add("X-Callback-Url", _options.CallbackUrl); // Use the configured callback URL
+        httpRequest.Headers.Add("X-Reference-Id", Guid.NewGuid().ToString());
+        httpRequest.Headers.Add("X-Target-Environment", "sandbox");
+
+        var response = await _httpClient.SendAsync(httpRequest);
+
+        if (!response.IsSuccessStatusCode)
+        {
+          var errorContent = await response.Content.ReadAsStringAsync();
+          _logger.LogError($"An error occurred while processing the refund: {response.StatusCode} - {errorContent}");
+          throw new Exception($"Refund failed: {errorContent}");
+        }
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var refundResponse = JsonSerializer.Deserialize<Refund>(responseContent);
+
+        model.Id = refundResponse.Id;
+        _context.Refunds.Add(model);
+        await _context.SaveChangesAsync();
+
+        return model;
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while processing the refund: {ex.Message}");
+        throw;
+      }
+    }
   }
 }

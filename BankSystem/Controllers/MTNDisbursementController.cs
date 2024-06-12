@@ -94,7 +94,28 @@ namespace BankSystem.Controllers
         return StatusCode(500, $"An error occurred while getting deposit status: {ex.Message}");
       }
     }
+    [HttpPost("refund")]
+    public async Task<IActionResult> Refund([FromBody] Refund model)
+    {
+      if (model == null ||
+          string.IsNullOrEmpty(model.Amount) ||
+          string.IsNullOrEmpty(model.Currency) ||
+          string.IsNullOrEmpty(model.ExternalId) ||
+          string.IsNullOrEmpty(model.ReferenceIdToRefund))
+      {
+        return BadRequest(new { message = "Invalid request parameters." });
+      }
 
-
+      try
+      {
+        var result = await _mtnDisbursementService.RefundAsync(model);
+        return Ok(result);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while processing the refund: {ex.Message}");
+        return StatusCode(500, new { message = $"An error occurred while processing the refund: {ex.Message}" });
+      }
+    }
   }
 }
