@@ -5,6 +5,8 @@ using BankSystem.Services;
 using BankSystem.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using BankSystem.Options;
 
 
 namespace BankSystem.Controllers
@@ -18,13 +20,15 @@ namespace BankSystem.Controllers
     private readonly ILogger<MTNMomoController> _logger;
     private readonly ApplicationDbContext _context;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly MoMoApiOptions _moMoApiOptions;
 
 
-    public MTNMomoController(MtnMomoService mtnMomoService, ILogger<MTNMomoController> logger, ApplicationDbContext context, IHttpClientFactory httpClientFactory)
+    public MTNMomoController(MtnMomoService mtnMomoService, ILogger<MTNMomoController> logger, ApplicationDbContext context, IHttpClientFactory httpClientFactory, IOptions<MoMoApiOptions> optionsAccessor)
     {
       _mtnMomoService = mtnMomoService ?? throw new ArgumentNullException(nameof(mtnMomoService));
       _logger = logger ?? throw new ArgumentNullException(nameof(logger));
       _context = context ?? throw new ArgumentNullException(nameof(context));
+      _moMoApiOptions = optionsAccessor.Value ?? throw new ArgumentNullException(nameof(optionsAccessor));
       _httpClientFactory = httpClientFactory;
     }
 
@@ -92,9 +96,9 @@ namespace BankSystem.Controllers
           return BadRequest(new { message = "X-Reference-Id parameter is required." });
         }
 
-        string accessToken = "your_access_token";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTEzVDExOjEzOjU4LjMxNCIsInNlc3Npb25JZCI6IjQ4NDBjZGFkLTU4NGUtNGU3OC1iYzk3LWM4ZGVhY2E0MGVkYSJ9.APzsifwF3Mif5itYFtPVn8USbe4O6Fs5ugNr_-Ff8cC63cCHPMcSrMYmFzuCw-JR31BiiZW2e5Xkd0m__iGKFp-komoh32oBl1_aWufnrBPRfaf9jYD1_6PqKm3OycYqPLODvtvecs5H9NjFJIOZR4niLjnXsLAT0WuECwDdYB4n8sdUm2enRT0Pkk_2RQk4kyklwxOKWVjyfdZ3KwRU9NGwGo8bgVcgKlWQ4PoIMMzx_AB_BrGKv8xHhaRXAJPGk0y55DEwGL8d7WJGTycKXtvrOhqo54OOiP5JMEnJ8BB_NGl1jnrZqcIoY0_YtB9PDITHZuckx2O0GxKFmJJD7A";
         string targetEnvironment = "sandbox";
-        string subscriptionKey = "your_subscription_key";
+        string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
         var paymentStatus = await _mtnMomoService.GetPaymentStatusAsync(accessToken, targetEnvironment, subscriptionKey, xReferenceId);
 
         return Ok(paymentStatus);
@@ -119,20 +123,18 @@ namespace BankSystem.Controllers
     }
 
 
-    [HttpGet("account-balance")]
-    public async Task<IActionResult> GetAccountBalance()
+    [HttpGet("balance")]
+    public async Task<IActionResult> GetBalance()
     {
       try
       {
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTEwVDA5OjQ5OjA1LjczMiIsInNlc3Npb25JZCI6IjVlY2U1NjUyLWE3ZWMtNDE5NC04ODA5LWNjNDZjNjE0Mjk4MiJ9.GyXrf6GhVhSBCPm1xdA_xWs_QPXJYHDyRNcMyKu6u5PDjNMbUKh34AAESWfGVbGwaGp93R8IzFLYiCdRNS8lpPravGkaJeDAupvQUnQlFRo-Ectux9IAW8Y1HE4V7C_F3_pz9A_PzTHRhrFe_5SHcHtkJWVEiFo3wBRalYFk04gKIoPSMy1vW9RFAlKYGZ97UWd8-YbiVWUC-7GNId4CeTIYv2vm2WDXQOr1MNy45yfdeP2-zucI6a1OXGiQKSOn-wXV6cK7liUAjRbAFBlSOxcLg9kb1Rjxmu81xM6U-yTmjqJdzxBHPyJbap8plz6CbnRto4MhqaQD8Emr6taA1w";
-        string targetEnvironment = "sandbox";
-        string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
-        var result = await _mtnMomoService.GetAccountBalanceAsync(accessToken, targetEnvironment, subscriptionKey);
-        return Ok(result);
+        var balance = await _mtnMomoService.GetAccountBalanceAsync();
+        return Ok(balance);
       }
       catch (Exception ex)
       {
-        return StatusCode(500, $"An error occurred while fetching account balance: {ex.Message}");
+        _logger.LogError($"An error occurred while getting account balance: {ex.Message}");
+        return StatusCode(500, $"An error occurred while getting account balance: {ex.Message}");
       }
     }
     [HttpGet("account-balance/{currency}")]
@@ -179,7 +181,7 @@ namespace BankSystem.Controllers
           return BadRequest(new { message = "Account holder MSISDN parameter is required." });
         }
 
-        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTEwVDE3OjA3OjQ4Ljk2MCIsInNlc3Npb25JZCI6Ijg1NDY2MzEyLTczNTMtNDBiOS1iYTZjLTg2MjU0MjY5MjNjMyJ9.T-7zTfEPg_nDEjPidvdRkEK1dpyOzVrbj4vsUGah_JPBUbK6xej1lD4pH1UiEUpnvOsSalpi_dKXU3bUUW9__A1Zyo9u7UhN4rxIQCbSl8FAyoYyvBPMZTwh4r37me-m-0a2MC_CV53WED5Z7VC-CUVEu7sSWB9h6nUcy-6sKRy0ZPlr1dDPh0sKGesXHNgAWesWDC-6ua0pR-WORa4VNS6sg_oRO8W-LUWqmhmORWyRUKrSvasoaCUYT_h6HjxPefiHHntR1N0S7yNHEieWUREZOlY1V2xy7lhAlFoq8sh4OH4ymG9wro2hI3-NKZqgFLt4vfz-RKLa1oqWSYBZjQ";
+        string accessToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSMjU2In0.eyJjbGllbnRJZCI6IjRhYmQ5Y2YzLTk4YTUtNDhmMy1iMmZhLWJkNmIzMjZjYjYzNSIsImV4cGlyZXMiOiIyMDI0LTA2LTEzVDExOjEzOjU4LjMxNCIsInNlc3Npb25JZCI6IjQ4NDBjZGFkLTU4NGUtNGU3OC1iYzk3LWM4ZGVhY2E0MGVkYSJ9.APzsifwF3Mif5itYFtPVn8USbe4O6Fs5ugNr_-Ff8cC63cCHPMcSrMYmFzuCw-JR31BiiZW2e5Xkd0m__iGKFp-komoh32oBl1_aWufnrBPRfaf9jYD1_6PqKm3OycYqPLODvtvecs5H9NjFJIOZR4niLjnXsLAT0WuECwDdYB4n8sdUm2enRT0Pkk_2RQk4kyklwxOKWVjyfdZ3KwRU9NGwGo8bgVcgKlWQ4PoIMMzx_AB_BrGKv8xHhaRXAJPGk0y55DEwGL8d7WJGTycKXtvrOhqo54OOiP5JMEnJ8BB_NGl1jnrZqcIoY0_YtB9PDITHZuckx2O0GxKFmJJD7A";
         string targetEnvironment = "sandbox";
         string subscriptionKey = "184789bdc53f4c05870da82d1c307b63";
         var result = await _mtnMomoService.GetBasicUserInfoAsync(accessToken, targetEnvironment, subscriptionKey, accountHolderMSISDN);
@@ -274,7 +276,6 @@ namespace BankSystem.Controllers
       }
     }
 
-    // delete the invoice
     [HttpPost("cancel-invoice/{referenceId}")]
     public async Task<IActionResult> CancelInvoice([FromBody] GetInvoiceStatusModel model, [FromHeader(Name = "Authorization")] string authorization, [FromHeader(Name = "X-Target-Environment")] string targetEnvironment, [FromHeader(Name = "X-Reference-Id")] string referenceId, [FromHeader(Name = "X-Callback-Url")] string callbackUrl)
     {
@@ -285,7 +286,7 @@ namespace BankSystem.Controllers
 
       try
       {
-        string requestUrl = $"https://sandbox.momodeveloper.mtn.com/collection/v2_0/invoice/{referenceId}";
+        string requestUrl = $"{_moMoApiOptions.BaseUrl}/collection/v2_0/invoice/{referenceId}";
 
         var httpClient = _httpClientFactory.CreateClient();
         var request = new HttpRequestMessage(HttpMethod.Delete, requestUrl);
@@ -294,8 +295,15 @@ namespace BankSystem.Controllers
         request.Headers.Add("X-Target-Environment", targetEnvironment);
         request.Headers.Add("X-Reference-Id", referenceId);
         request.Headers.Add("X-Callback-Url", callbackUrl);
+        request.Headers.Add("Ocp-Apim-Subscription-Key", _moMoApiOptions.SubscriptionKey);
 
-        HttpResponseMessage response = await httpClient.SendAsync(request);
+        _logger.LogInformation($"Sending request to {requestUrl} to cancel invoice with reference ID: {referenceId}");
+
+        var response = await httpClient.SendAsync(request);
+
+        _logger.LogInformation($"Received HTTP response {(int)response.StatusCode} - {response.ReasonPhrase}");
+
+        var responseBody = await response.Content.ReadAsStringAsync();
 
         if (response.IsSuccessStatusCode)
         {
@@ -304,7 +312,7 @@ namespace BankSystem.Controllers
         }
         else
         {
-          string errorMessage = $"Failed to cancel invoice. Status code: {response.StatusCode}";
+          string errorMessage = $"Failed to cancel invoice. Status code: {response.StatusCode}. Response: {responseBody}";
           _logger.LogError(errorMessage);
           return StatusCode((int)response.StatusCode, new { message = errorMessage });
         }
@@ -315,6 +323,7 @@ namespace BankSystem.Controllers
         return StatusCode(500, new { message = $"An error occurred while canceling the invoice: {ex.Message}" });
       }
     }
+
 
 
 

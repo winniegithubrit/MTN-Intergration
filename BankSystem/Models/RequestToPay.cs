@@ -9,7 +9,7 @@ namespace BankSystem.Models
 
   public class RequestToPay
   {
-    public string Id { get; set; }
+    public string? Id { get; set; }
     public string? Amount { get; set; }
     public string? Currency { get; set; }
     public string? ExternalId { get; set; }

@@ -5,6 +5,8 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Net.Http.Headers;
+using Microsoft.Extensions.Options;
+using BankSystem.Options;
 
 namespace BankSystem.Services
 {
@@ -13,10 +15,16 @@ namespace BankSystem.Services
     private readonly ApplicationDbContext _context;
     private readonly HttpClient _httpClient;
 
-    public MtnMomoService(ApplicationDbContext context, HttpClient httpClient)
+    private readonly ILogger<MtnMomoService> _logger;
+    private readonly MoMoApiOptions _moMoApiOptions;
+
+    public MtnMomoService(ApplicationDbContext context, HttpClient httpClient, ILogger<MtnMomoService> logger, IOptions<MoMoApiOptions> optionsAccessor)
     {
       _context = context ?? throw new ArgumentNullException(nameof(context));
       _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+      _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+      _moMoApiOptions = optionsAccessor.Value ?? throw new ArgumentNullException(nameof(optionsAccessor));
+
     }
 
     public async Task<string> CreatePaymentAsync(CreatePayment model)
@@ -60,19 +68,35 @@ namespace BankSystem.Services
         await _context.SaveChangesAsync();
       }
     }
-
-    
-    public async Task<string> GetAccountBalanceAsync(string accessToken, string targetEnvironment, string subscriptionKey)
+    public async Task<GetAccountBalance> GetAccountBalanceAsync()
     {
-      _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-      _httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
-      _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", targetEnvironment);
-      var response = await _httpClient.GetAsync("https://sandbox.momodeveloper.mtn.com/collection/v1_0/account/balance");
+      var requestUrl = "https://sandbox.momodeveloper.mtn.com/collection/v1_0/account/balance";
+      var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+
+      request.Headers.Add("Authorization", $"Bearer {_moMoApiOptions.AccessToken}");
+      request.Headers.Add("X-Target-Environment", _moMoApiOptions.TargetEnvironment);
+      request.Headers.Add("Ocp-Apim-Subscription-Key", _moMoApiOptions.SubscriptionKey);
+
+      _logger.LogInformation($"Sending request to {requestUrl} to get account balance");
+
+      var response = await _httpClient.SendAsync(request);
+
       var responseBody = await response.Content.ReadAsStringAsync();
-      return responseBody;
+      if (!response.IsSuccessStatusCode)
+      {
+        _logger.LogError($"An error occurred while getting account balance: {response.ReasonPhrase}. Response: {responseBody}");
+        response.EnsureSuccessStatusCode();
+      }
+
+      var balanceResponse = JsonSerializer.Deserialize<GetAccountBalance>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+      if (balanceResponse == null)
+      {
+        throw new InvalidOperationException("Failed to retrieve balance. The response is null.");
+      }
+
+      return balanceResponse;
     }
-
-
 
     public async Task<string> GetAccountBalanceInSpecificCurrencyAsync(string accessToken, string targetEnvironment, string subscriptionKey, string currency)
     {
