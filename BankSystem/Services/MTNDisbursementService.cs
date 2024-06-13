@@ -27,14 +27,20 @@ namespace BankSystem.Services
       _options = options.Value;
       _context = context;
     }
-
     public async Task<Deposit> DepositAsync(Deposit deposit)
     {
-      // Save the deposit to the database before sending the request
+      // Check for existing deposit with the same ExternalId and Payee.PartyId
+      var existingDeposit = await _context.Deposits
+          .FirstOrDefaultAsync(d => d.ExternalId == deposit.ExternalId && d.Payee.PartyId == deposit.Payee.PartyId);
+
+      if (existingDeposit != null)
+      {
+        throw new InvalidOperationException("A deposit with the same ExternalId and Payee.PartyId already exists.");
+      }
+
       _context.Deposits.Add(deposit);
       await _context.SaveChangesAsync();
-
-      // Retrieve user information using MSISDN from the deposit
+// has to be unique external id and partyid
       var userInfo = await GetBasicUserInfoAsync(deposit.Payee.PartyId);
       _logger.LogInformation($"Retrieved user info for MSISDN {deposit.Payee.PartyId}: {JsonSerializer.Serialize(userInfo)}");
       _context.BasicUserInfomation.Add(userInfo);
