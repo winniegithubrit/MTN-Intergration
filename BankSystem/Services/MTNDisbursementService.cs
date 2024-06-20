@@ -1,275 +1,260 @@
 using System;
+using System.Data;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using BankSystem.Models;
-using BankSystem.Options;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.EntityFrameworkCore;
-using System.Globalization;
+using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using BankSystem.Models;
 
 namespace BankSystem.Services
 {
   public class MTNDisbursementService
   {
+    private readonly IMemoryCache _cache;
     private readonly HttpClient _httpClient;
     private readonly ILogger<MTNDisbursementService> _logger;
-    private readonly MoMoDisbursementOptions _options;
-    private readonly ApplicationDbContext _context;
+    private readonly string _apiUser;
+    private readonly string _apiKey;
+    private readonly string _baseUrl;
+    private readonly string _subscriptionKey;
+    private readonly string _targetEnvironment;
+    private readonly string _defaultConnection;
 
-    public MTNDisbursementService(HttpClient httpClient, ILogger<MTNDisbursementService> logger, IOptions<MoMoDisbursementOptions> options, ApplicationDbContext context)
+    public MTNDisbursementService(IMemoryCache cache, HttpClient httpClient, ILogger<MTNDisbursementService> logger, IConfiguration configuration)
     {
-      _httpClient = httpClient;
-      _logger = logger;
-      _options = options.Value;
-      _context = context;
+      _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+      _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+      _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+      _apiUser = configuration["MoMoDisbursementOptions:ApiUser"] ?? throw new ArgumentNullException("MoMoDisbursementOptions:ApiUser");
+      _apiKey = configuration["MoMoDisbursementOptions:ApiKey"] ?? throw new ArgumentNullException("MoMoDisbursementOptions:ApiKey");
+      _subscriptionKey = configuration["MoMoDisbursementOptions:SubscriptionKey"] ?? throw new ArgumentNullException("MoMoDisbursementOptions:SubscriptionKey");
+      _baseUrl = configuration["MoMoDisbursementOptions:BaseUrl"] ?? throw new ArgumentNullException("MoMoDisbursementOptions:BaseUrl");
+      _targetEnvironment = configuration["MoMoDisbursementOptions:TargetEnvironment"] ?? throw new ArgumentNullException("MoMoDisbursementOptions:TargetEnvironment");
+      _defaultConnection = configuration["ConnectionStrings:DefaultConnection"] ?? throw new ArgumentNullException("ConnectionStrings:DefaultConnection");
     }
-    public async Task<Deposit> DepositAsync(Deposit deposit)
-    {
-      // Check for existing deposit with the same ExternalId and Payee.PartyId
-      var existingDeposit = await _context.Deposits
-          .FirstOrDefaultAsync(d => d.ExternalId == deposit.ExternalId && d.Payee.PartyId == deposit.Payee.PartyId);
 
-      if (existingDeposit != null)
+    public async Task<string> GetAccessTokenAsync()
+    {
+      if (!_cache.TryGetValue("AccessToken", out string? accessToken))
       {
-        throw new InvalidOperationException("A deposit with the same ExternalId and Payee.PartyId already exists.");
+        _logger.LogInformation("Access token not found in cache, creating new one.");
+        accessToken = await CreateAccessTokenAsync();
+
+        var cacheEntryOptions = new MemoryCacheEntryOptions()
+            .SetAbsoluteExpiration(TimeSpan.FromMinutes(50));
+
+        _cache.Set("AccessToken", accessToken, cacheEntryOptions);
+      }
+      else
+      {
+        _logger.LogInformation("Access token found in cache.");
       }
 
-      _context.Deposits.Add(deposit);
-      await _context.SaveChangesAsync();
-// has to be unique external id and partyid
-      var userInfo = await GetBasicUserInfoAsync(deposit.Payee.PartyId);
-      _logger.LogInformation($"Retrieved user info for MSISDN {deposit.Payee.PartyId}: {JsonSerializer.Serialize(userInfo)}");
-      _context.BasicUserInfomation.Add(userInfo);
-      await _context.SaveChangesAsync();
+      return accessToken!;
+    }
 
-      var requestUrl = "https://sandbox.momodeveloper.mtn.com/disbursement/v2_0/deposit";
-      var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+    private async Task<string> CreateAccessTokenAsync()
+    {
+      var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/disbursement/token/");
+      var credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{_apiUser}:{_apiKey}"));
 
-      request.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
-      request.Headers.Add("X-Reference-Id", Guid.NewGuid().ToString());
-      request.Headers.Add("X-Target-Environment", "sandbox");
-      request.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
+      request.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+      request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+      request.Headers.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
 
-      var depositPayload = new
+      HttpResponseMessage response = await _httpClient.SendAsync(request);
+
+      if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
       {
-        amount = deposit.Amount,
-        currency = deposit.Currency,
-        externalId = deposit.ExternalId,
-        payee = new
-        {
-          partyIdType = deposit.Payee?.PartyIdType,
-          partyId = deposit.Payee?.PartyId
-        },
-        payerMessage = deposit.PayerMessage,
-        payeeNote = deposit.PayeeNote
-      };
+        _logger.LogError("Unauthorized: Invalid credentials or subscription key");
+        throw new UnauthorizedAccessException("Invalid credentials or subscription key");
+      }
 
-      var json = JsonSerializer.Serialize(depositPayload, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
-      request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
-      _logger.LogInformation($"Sending request to {requestUrl} with content: {json}");
-
-      var response = await _httpClient.SendAsync(request);
-
-      var responseBody = await response.Content.ReadAsStringAsync();
       if (!response.IsSuccessStatusCode)
       {
-        _logger.LogError($"An error occurred while processing deposit: {response.ReasonPhrase}. Response: {responseBody}");
-        response.EnsureSuccessStatusCode();
+        var errorContent = await response.Content.ReadAsStringAsync();
+        _logger.LogError($"Failed to create access token. Status code: {response.StatusCode}, Content: {errorContent}");
+        throw new Exception($"Failed to create access token. Status code: {response.StatusCode}, Content: {errorContent}");
       }
 
-      return deposit;
+      var content = await response.Content.ReadAsStringAsync();
+      var json = JObject.Parse(content);
+
+      return json["access_token"]?.ToString() ?? throw new Exception("Access token not found in response.");
     }
 
-    // get account balance
-    public async Task<BalanceResponse> GetAccountBalanceAsync()
+    public async Task<string> DepositAsync(Deposit model)
     {
-      var requestUrl = "https://sandbox.momodeveloper.mtn.com/disbursement/v1_0/account/balance";
-      var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+      var accessToken = await GetAccessTokenAsync();
 
-      request.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
-      request.Headers.Add("X-Target-Environment", "sandbox");
-      request.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
-
-      _logger.LogInformation($"Sending request to {requestUrl} to get account balance");
-
-      var response = await _httpClient.SendAsync(request);
-
-      var responseBody = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode)
-      {
-        _logger.LogError($"An error occurred while getting account balance: {response.ReasonPhrase}. Response: {responseBody}");
-        response.EnsureSuccessStatusCode();
-      }
-
-      var balanceResponse = JsonSerializer.Deserialize<BalanceResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-      if (balanceResponse == null)
-      {
-        throw new InvalidOperationException("Failed to retrieve balance. The response is null.");
-      }
-
-      return balanceResponse;
-    }
-
-    public async Task<BasicUserInfoResponse> GetBasicUserInfoAsync(string? msisdn)
-    {
-      if (msisdn == null)
-      {
-        throw new ArgumentNullException(nameof(msisdn), "MSISDN cannot be null.");
-      }
-
-      var requestUrl = $"https://sandbox.momodeveloper.mtn.com/disbursement/v1_0/accountholder/msisdn/{msisdn}/basicuserinfo";
-      var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-
-      request.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
-      request.Headers.Add("X-Target-Environment", "sandbox");
-      request.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
-
-      _logger.LogInformation($"Sending request to {requestUrl} to get basic user info for MSISDN: {msisdn}");
-
-      var response = await _httpClient.SendAsync(request);
-
-      var responseBody = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode)
-      {
-        _logger.LogError($"An error occurred while getting basic user info for MSISDN {msisdn}: {response.ReasonPhrase}. Response: {responseBody}");
-        response.EnsureSuccessStatusCode();
-      }
-
-      var userInfoResponse = JsonSerializer.Deserialize<BasicUserInfoResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-      if (userInfoResponse == null)
-      {
-        throw new InvalidOperationException("Failed to retrieve user info. The response is null.");
-      }
-
-      return userInfoResponse;
-    }
-
-    public async Task<DepositStatusResponse> GetDepositStatusAsync(string referenceId)
-    {
-      var requestUrl = $"https://sandbox.momodeveloper.mtn.com/disbursement/v1_0/deposit/{referenceId}";
-
-      var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-      request.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
-      request.Headers.Add("X-Target-Environment", "sandbox");
-      request.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
-
-      var response = await _httpClient.SendAsync(request);
-      var responseBody = await response.Content.ReadAsStringAsync();
-
-      if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-      {
-        // Fetch data from the deposit database only if not found in response
-        var deposit = await _context.Deposits.FirstOrDefaultAsync();
-
-        // Create a new DepositStatusResponse object with deposit values
-        return new DepositStatusResponse
-        {
-          FinancialTransactionId = referenceId,
-          ExternalId = deposit?.ExternalId,
-          Amount = deposit?.Amount,
-          Currency = deposit?.Currency,
-          Payee = deposit?.Payee != null ? new BankSystem.Models.Party
-          {
-            PartyIdType = deposit.Payee.PartyIdType,
-            PartyId = deposit.Payee.PartyId
-          } : null,
-          PayerMessage = deposit?.PayerMessage,
-          PayeeNote = deposit?.PayeeNote,
-          Status = "ACTIVE",
-          Reason = new Reason
-          {
-            Code = "PAYER_NOT_FOUND",
-            Message = "Deposited successfully"
-          }
-        };
-      }
-      else if (!response.IsSuccessStatusCode)
-      {
-        _logger.LogError($"An error occurred while getting deposit status: {response.ReasonPhrase}. Response: {responseBody}");
-        response.EnsureSuccessStatusCode();
-      }
-
-      var depositStatus = JsonSerializer.Deserialize<DepositStatusResponse>(responseBody, new JsonSerializerOptions
-      {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-      });
-
-      return depositStatus ?? new DepositStatusResponse();
-    }
-
-    public async Task<Refund> RefundAsync(Refund model)
-    {
       try
       {
-        _logger.LogInformation($"Attempting refund for ReferenceIdToRefund: {model.ReferenceIdToRefund}");
-
-        var requestToPay = await _context.RequestToPays.SingleOrDefaultAsync(rtp => rtp.ExternalId == model.ReferenceIdToRefund);
-
-        if (requestToPay == null)
+        var requestPayload = new
         {
-          _logger.LogError($"Request to Pay not found for ReferenceIdToRefund: {model.ReferenceIdToRefund}");
-          throw new Exception("Request to Pay not found.");
-        }
-
-        if (!Guid.TryParse(model.ReferenceIdToRefund, out var referenceIdToRefund))
-        {
-          _logger.LogError($"Invalid UUID format for ReferenceIdToRefund: {model.ReferenceIdToRefund}");
-          throw new Exception("Invalid UUID format for ReferenceIdToRefund.");
-        }
-
-        var refundRequest = new
-        {
-          amount = requestToPay.Amount?.ToString(CultureInfo.InvariantCulture),
-          currency = requestToPay.Currency,
-          externalId = requestToPay.ExternalId,
-          payerMessage = requestToPay.PayerMessage,
-          payeeNote = requestToPay.PayeeNote,
-          referenceIdToRefund = referenceIdToRefund.ToString()
+          amount = model.Amount,
+          currency = model.Currency,
+          externalId = model.ExternalId,
+          payee = new
+          {
+            partyIdType = model.Payee.PartyIdType,
+            partyId = model.Payee.PartyId
+          },
+          payerMessage = model.PayerMessage,
+          payeeNote = model.PayeeNote
         };
 
-        var content = JsonSerializer.Serialize(refundRequest);
-        _logger.LogInformation($"Refund Request Payload: {content}");
+        var requestContent = new StringContent(JsonConvert.SerializeObject(requestPayload), Encoding.UTF8, "application/json");
 
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://sandbox.momodeveloper.mtn.com/disbursement/v2_0/refund")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/disbursement/v2_0/deposit")
         {
-          Content = new StringContent(content, Encoding.UTF8, "application/json")
+          Content = requestContent
         };
 
-        httpRequest.Headers.Add("Ocp-Apim-Subscription-Key", _options.SubscriptionKey);
-        httpRequest.Headers.Add("Authorization", $"Bearer {_options.AccessToken}");
-        httpRequest.Headers.Add("X-Callback-Url", _options.CallbackUrl); // Use the configured callback URL
-        httpRequest.Headers.Add("X-Reference-Id", Guid.NewGuid().ToString());
-        httpRequest.Headers.Add("X-Target-Environment", "sandbox");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Add("X-Reference-Id", Guid.NewGuid().ToString());
+        request.Headers.Add("X-Target-Environment", _targetEnvironment);
+        request.Headers.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
 
-        var response = await _httpClient.SendAsync(httpRequest);
+        HttpResponseMessage response = await _httpClient.SendAsync(request);
 
         if (!response.IsSuccessStatusCode)
         {
           var errorContent = await response.Content.ReadAsStringAsync();
-          _logger.LogError($"An error occurred while processing the refund: {response.StatusCode} - {errorContent}");
-          throw new Exception($"Refund failed: {errorContent}");
+          _logger.LogError($"Failed to request deposit. Status code: {response.StatusCode}, Content: {errorContent}");
+          throw new Exception($"Failed to request deposit. Status code: {response.StatusCode}, Content: {errorContent}");
         }
 
-        var responseContent = await response.Content.ReadAsStringAsync();
-        var refundResponse = JsonSerializer.Deserialize<Refund>(responseContent);
+        await SaveDepositToDatabaseAsync(model);
 
-        model.Id = refundResponse.Id;
-        _context.Refunds.Add(model);
-        await _context.SaveChangesAsync();
-
-        return model;
+        return "Deposit successfully processed.";
       }
       catch (Exception ex)
       {
-        _logger.LogError($"An error occurred while processing the refund: {ex.Message}");
+        _logger.LogError($"An error occurred while processing deposit: {ex.Message}");
         throw;
+      }
+    }
+
+    private async Task SaveDepositToDatabaseAsync(Deposit model)
+    {
+      try
+      {
+        using (var connection = new MySqlConnection(_defaultConnection))
+        {
+          await connection.OpenAsync();
+
+          using (var command = new MySqlCommand("DepositProcedure", connection))
+          {
+            command.CommandType = CommandType.StoredProcedure;
+
+            command.Parameters.Add("@pAmount", MySqlDbType.VarChar).Value = model.Amount;
+            command.Parameters.Add("@pCurrency", MySqlDbType.VarChar).Value = model.Currency;
+            command.Parameters.Add("@pExternalId", MySqlDbType.VarChar).Value = model.ExternalId;
+            command.Parameters.Add("@pPayeePartyIdType", MySqlDbType.VarChar).Value = model.Payee.PartyIdType;
+            command.Parameters.Add("@pPayeePartyId", MySqlDbType.VarChar).Value = model.Payee.PartyId;
+            command.Parameters.Add("@pPayerMessage", MySqlDbType.VarChar).Value = model.PayerMessage;
+            command.Parameters.Add("@pPayeeNote", MySqlDbType.VarChar).Value = model.PayeeNote;
+
+            await command.ExecuteNonQueryAsync();
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while executing DepositProcedure: {ex.Message}");
+        throw;
+      }
+    }
+    // BALANCE
+    public async Task<GetAccountBalance> GetAccountBalanceAsync()
+    {
+      var requestUrl = $"{_baseUrl}/disbursement/v1_0/account/balance";
+      var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+
+      var accessToken = await GetAccessTokenAsync();
+
+      request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+      request.Headers.Add("X-Target-Environment", "sandbox");
+      request.Headers.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
+
+      var response = await _httpClient.SendAsync(request);
+      var responseBody = await response.Content.ReadAsStringAsync();
+
+      if (!response.IsSuccessStatusCode)
+      {
+        throw new Exception($"An error occurred while getting account balance: {response.ReasonPhrase}. Response: {responseBody}");
+      }
+
+      var balanceResponse = JsonConvert.DeserializeObject<GetAccountBalance>(responseBody);
+      return balanceResponse ?? throw new Exception("Failed to deserialize account balance response.");
+    }
+    // BASIC USER INFO
+    public async Task<BasicUserInfo?> GetBasicUserInfoAsync(string accessToken, string targetEnvironment, string accountHolderMSISDN)
+    {
+      try
+      {
+        var requestUrl = $"{_baseUrl}/disbursement/v1_0/accountholder/msisdn/{accountHolderMSISDN}/basicuserinfo";
+        var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Add("X-Target-Environment", targetEnvironment);
+        request.Headers.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
+
+        var response = await _httpClient.SendAsync(request);
+
+        if (response.IsSuccessStatusCode)
+        {
+          var content = await response.Content.ReadAsStringAsync();
+          var basicUserInfo = JsonConvert.DeserializeObject<BasicUserInfo>(content);
+          return basicUserInfo;
+        }
+        else
+        {
+          var errorContent = await response.Content.ReadAsStringAsync();
+          throw new HttpRequestException($"HTTP request failed with status code {response.StatusCode}. Content: {errorContent}");
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while getting basic user info: {ex.Message}");
+        throw;
+      }
+    }
+    // DEPOSIT STATUS
+
+    public async Task<DepositResult> GetDepositStatusAsync(string accessToken, string targetEnvironment, string referenceId)
+    {
+      try
+      {
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        _httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
+        _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", _targetEnvironment);
+
+        string requestUrl = $"{_baseUrl}/disbursement/v1_0/deposit/{referenceId}";
+        var response = await _httpClient.GetAsync(requestUrl);
+
+        if (response.IsSuccessStatusCode)
+        {
+          var responseBody = await response.Content.ReadAsStringAsync();
+          var depositStatusResponse = JsonConvert.DeserializeObject<DepositResult>(responseBody);
+          return depositStatusResponse;
+        }
+        else
+        {
+          var errorContent = await response.Content.ReadAsStringAsync();
+          throw new Exception($"Failed to get deposit status. Status code: {response.StatusCode}, Content: {errorContent}");
+        }
+      }
+      catch (Exception ex)
+      {
+        throw new Exception($"An error occurred while getting deposit status: {ex.Message}");
       }
     }
   }

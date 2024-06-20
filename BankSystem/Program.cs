@@ -1,15 +1,12 @@
-using System.Security.Cryptography.X509Certificates;
-using Microsoft.EntityFrameworkCore;
-using BankSystem.Models;
 using BankSystem.Services;
-using BankSystem.Options;
-using Microsoft.Extensions.Options;
-using Pomelo.EntityFrameworkCore.MySql;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Security.Cryptography.X509Certificates;
+using BankSystem.Options;
 
 public class Program
 {
@@ -26,25 +23,17 @@ public class Program
         // Register MoMoDisbursementOptions from configuration
         builder.Services.Configure<MoMoDisbursementOptions>(builder.Configuration.GetSection("MoMoDisbursementOptions"));
 
-        // Register the MtnMomoService with an HttpClient
-        builder.Services.AddHttpClient<MtnMomoService>();
-
-        // Register ApplicationDbContext with MySQL configuration
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-        builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseMySQL(connectionString));
-
-        // Register MTNDisbursementService
-        builder.Services.AddScoped<MTNDisbursementService>();
+        // Register the MTNMomoService  and MTNDisbursementService with an HttpClient
+        builder.Services.AddHttpClient<MTNMomoService>();
+        builder.Services.AddHttpClient<MTNDisbursementService>();
 
         // Add JSON options configuration
         builder.Services.AddControllers()
-                .AddJsonOptions(options =>
-                {
-                    options.JsonSerializerOptions.PropertyNamingPolicy = null; // Keeps the original property names
-                    options.JsonSerializerOptions.WriteIndented = true; // For pretty print, optional
-                });
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.PropertyNamingPolicy = null; // Keeps the original property names
+                options.JsonSerializerOptions.WriteIndented = true; // For pretty print, optional
+            });
 
         var app = builder.Build();
 
@@ -52,7 +41,6 @@ public class Program
         if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Home/Error");
-            // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
             app.UseHsts();
         }
 
