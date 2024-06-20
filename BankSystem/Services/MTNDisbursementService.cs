@@ -257,5 +257,84 @@ namespace BankSystem.Services
         throw new Exception($"An error occurred while getting deposit status: {ex.Message}");
       }
     }
+    // REFUND FUNCTIONALITY
+    public async Task<string> RefundAsync(RefundModel model)
+    {
+      var accessToken = await GetAccessTokenAsync();
+
+      try
+      {
+        var requestPayload = new
+        {
+          amount = model.Amount,
+          currency = model.Currency,
+          externalId = model.ExternalId,
+          payerMessage = model.PayerMessage,
+          payeeNote = model.PayeeNote
+        };
+
+        var requestContent = new StringContent(JsonConvert.SerializeObject(requestPayload), Encoding.UTF8, "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/disbursement/v2_0/refund/{model.ReferenceIdToRefund}")
+        {
+          Content = requestContent
+        };
+
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Add("X-Reference-Id", Guid.NewGuid().ToString());
+        request.Headers.Add("X-Target-Environment", _targetEnvironment);
+        request.Headers.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
+
+        HttpResponseMessage response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+          var errorContent = await response.Content.ReadAsStringAsync();
+          _logger.LogError($"Failed to request refund. Status code: {response.StatusCode}, Content: {errorContent}");
+          throw new Exception($"Failed to request refund. Status code: {response.StatusCode}, Content: {errorContent}");
+        }
+
+        await SaveRefundToDatabaseAsync(model);
+
+        return "Refund successfully processed.";
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while processing refund: {ex.Message}");
+        throw;
+      }
+    }
+
+    private async Task SaveRefundToDatabaseAsync(RefundModel model)
+    {
+      try
+      {
+        using (var connection = new MySqlConnection(_defaultConnection))
+        {
+          await connection.OpenAsync();
+
+          using (var command = new MySqlCommand("RefundProcedure", connection))
+          {
+            command.CommandType = CommandType.StoredProcedure;
+
+            command.Parameters.Add("@pAmount", MySqlDbType.VarChar).Value = model.Amount;
+            command.Parameters.Add("@pCurrency", MySqlDbType.VarChar).Value = model.Currency;
+            command.Parameters.Add("@pExternalId", MySqlDbType.VarChar).Value = model.ExternalId;
+            command.Parameters.Add("@pPayerMessage", MySqlDbType.VarChar).Value = model.PayerMessage;
+            command.Parameters.Add("@pPayeeNote", MySqlDbType.VarChar).Value = model.PayeeNote;
+            command.Parameters.Add("@pReferenceIdToRefund", MySqlDbType.VarChar).Value = model.ReferenceIdToRefund;
+
+            await command.ExecuteNonQueryAsync();
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError($"An error occurred while executing RefundProcedure: {ex.Message}");
+        throw;
+      }
+    }
+
+
   }
 }

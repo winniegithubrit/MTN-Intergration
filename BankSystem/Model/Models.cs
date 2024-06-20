@@ -159,9 +159,9 @@ namespace BankSystem.Models
     public string? Currency { get; set; }
   }
 
-  public class Refund
+  public class RefundModel
   {
-    public int Id { get; set; }
+    
     public string? Amount { get; set; }
     public string? Currency { get; set; }
     public string? ExternalId { get; set; }
